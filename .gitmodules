@@ -1,0 +1,3 @@
+[submodule "thirdparty/basalt-headers"]
+	path = thirdparty/basalt-headers
+	url = https://gitlab.com/VladyslavUsenko/basalt-headers.git
