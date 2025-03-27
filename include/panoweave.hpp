@@ -5,8 +5,6 @@
 
 namespace PanoWeave
 {
-
-    //TODO remove this fuckery?
     using ScalarT = float;
     #define CvMatT CV_32FC
     using CvPoint2T = cv::Point_<ScalarT>;
@@ -23,7 +21,7 @@ namespace PanoWeave
         using EigenT = Eigen::aligned_vector<Eigen::Matrix<ScalarT, T, 1>>;
 
         EigenAlignedCvMat(const cv::Size &res)
-        : eigen_mat(res.area()), cv_mat(res, CvMatT(T), this->eigen_mat.data()) {}
+            : eigen_mat(res.area()), cv_mat(res, CvMatT(T), this->eigen_mat.data()) {}
 
         operator cv::Mat &()
         {
@@ -71,25 +69,25 @@ namespace PanoWeave
         void weave(const std::vector<cv::Mat> &images, ScalarT depth, cv::Mat &pano);
         void weave(const std::vector<cv::Mat> &images, const cv::Mat &depth, cv::Mat &pano);
 
-
     private:
         void loadCalibration(const std::string &calibration_filepath);
         bool buildInternals();
         bool buildMaps();
         void buildVignettes();
-        void buildGraph();
+        void buildMask();
+        void buildMirrors();
 
-        bool rebuild = true;
+        bool build_maps = true, build_vigns = true, build_mask = true, build_mirrors = true;
+        int channels = 0;
         cv::Size res;
         std::vector<EigenAlignedCvMat<2>> maps;
-        std::vector<EigenAlignedCvMat<1>> vigns;
-        std::vector<cv::Mat> masks;
         ScalarT vign_thresh = 0.5;
         cv::Mat depth_dynamic;
         ScalarT depth_static = 0.0;
         ScalarT fov_x = M_PI * 2.0, fov_y = M_PI;
         basalt::Calibration<ScalarT> calib;
-        cv::GCompiled graph;
+        std::vector<cv::Mat> vigns, vigns_base;
+        cv::Mat mask, mask_base;
     };
 
 }
