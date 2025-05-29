@@ -1,10 +1,11 @@
 #include "panoweave.hpp"
+#include "ocl_kernels.hpp"
 
 #include <fstream>
 #include <cereal/archives/json.hpp>
 #include <spdlog/spdlog.h>
 #include <opencv2/core/affine.hpp>
-#include <opencv2/core/eigen.hpp>
+#include <opencv2/core/ocl.hpp>
 #include <opencv2/imgproc.hpp>
 
 #include "basalt/serialization/headers_serialization.h"
@@ -29,10 +30,11 @@ namespace PanoWeave
     }
 
     PanoWeave::PanoWeave(const std::string &filepath, ScalarT fov_x, ScalarT fov_y, const cv::Mat &depth)
-        : depth_dynamic(depth), fov_x(fov_x), fov_y(fov_y)
+        : fov_x(fov_x), fov_y(fov_y)
     {
         spdlog::trace("PanoWeave::PanoWeave(const std::string &, ScalarT, ScalarT, const cv::Mat &)");
         this->loadCalibration(filepath);
+        depth.copyTo(this->depth_dynamic);
         this->buildInternals();
     }
 
@@ -44,6 +46,10 @@ namespace PanoWeave
         basalt::Calibration<double> calib;
         archive(calib);
         this->calib = calib.cast<ScalarT>();
+
+        this->response.resize(this->calib.response.size());
+        for (uint8_t i = 0; i < this->calib.response.size(); ++i)
+            cv::Mat({static_cast<int>(this->calib.response[i].size())}, CvMatT(1), this->calib.response[i].data()).copyTo(this->response[i]);
 
         this->build_maps = true;
         this->build_vigns = true;
@@ -61,7 +67,7 @@ namespace PanoWeave
     {
         spdlog::trace("PanoWeave::setDepth(const cv::Mat &)");
         this->depth_static = 0.0;
-        this->depth_dynamic = depth;
+        depth.copyTo(this->depth_dynamic);
         this->build_maps = true;
     }
 
@@ -140,34 +146,63 @@ namespace PanoWeave
         return thr;
     }
 
-
-    bool correctResponse(const cv::Mat &in, const Eigen::VectorXf &inv_resp, cv::Mat &out)
+    bool ocl_correctResponse(cv::InputArray _src, cv::InputArray _inv_resp, cv::OutputArray _dst)
     {
-        const int cn = in.channels();
-        out.create(in.size(), CvMatT(cn));
+        spdlog::trace("PanoWeave::ocl_correctResponse(cv::InputArray, cv::InputArray, cv::OutputArray)");
+        const int rows_per_wi = cv::ocl::Device::getDefault().isIntel() ? 4 : 1;
+
+        const int tp = _src.type();
+        if (tp != CV_8UC1 && tp != CV_8UC3 && tp != CV_8UC4)
+            return false;
+
+        cv::UMat src = _src.getUMat();
+        cv::UMat inv_resp = _inv_resp.getUMat();
+        cv::UMat dst = _dst.getUMat();
+
+        cv::ocl::Kernel k("correct_response", cv::ocl::PanoWeave::correct_response_oclsrc, cv::format("-DCN=%d", _src.channels()));
+        k.args(
+            cv::ocl::KernelArg::ReadOnlyNoSize(src),
+            cv::ocl::KernelArg::ReadOnlyNoSize(inv_resp),
+            cv::ocl::KernelArg::WriteOnly(dst));
+
+        size_t global_threads[2] = {(size_t)dst.cols, ((size_t)dst.rows + rows_per_wi - 1) / rows_per_wi};
+        return k.run(2, global_threads, nullptr, false);
+    }
+
+    void correctResponse(cv::InputArray _src, cv::InputArray _inv_resp, cv::OutputArray _dst)
+    {
+        spdlog::trace("PanoWeave::correctResponse(cv::InputArray, cv::InputArray, cv::OutputArray)");
+        const int cn = _src.channels();
+        _dst.create(_src.size(), CvMatT(cn));
+
+        if (cv::ocl::haveOpenCL() && ocl_correctResponse(_src, _inv_resp, _dst))
+            return;
+
+        cv::Mat src = _src.getMat();
+        cv::Mat dst = _dst.getMat();
+        cv::Mat inv_resp = _inv_resp.getMat();
 
         if (cn == 1)
-            out.forEach<ScalarT>([&](auto &val, const int *pos)
-                                 { val = inv_resp[in.at<uchar>(pos)]; });
+            dst.forEach<ScalarT>([&](auto &val, const int *pos)
+                                 { val = inv_resp.at<ScalarT>(src.at<uchar>(pos)); });
         else if (cn == 3)
-            out.forEach<cv::Vec<ScalarT, 3>>([&](auto &val, const int *pos)
-                                             { const auto &src = in.at<cv::Vec3b>(pos);
-                                    val[0] = inv_resp[src[0]];
-                                    val[1] = inv_resp[src[1]];
-                                    val[2] = inv_resp[src[2]]; });
+            dst.forEach<cv::Vec<ScalarT, 3>>([&](auto &dval, const int *pos)
+                                             { const auto &sval = src.at<cv::Vec3b>(pos);
+                                                dval[0] = inv_resp.at<ScalarT>(sval[0]);
+                                                dval[1] = inv_resp.at<ScalarT>(sval[1]);
+                                                dval[2] = inv_resp.at<ScalarT>(sval[2]); });
         else if (cn == 4)
-            out.forEach<cv::Vec<ScalarT, 4>>([&](auto &val, const int *pos)
-                                             { const auto &src = in.at<cv::Vec4b>(pos);
-                                    val[0] = inv_resp[src[0]];
-                                    val[1] = inv_resp[src[1]];
-                                    val[2] = inv_resp[src[2]];
-                                    val[4] = src[4]; });
-        else // TODO this type of error handling needed?
+            dst.forEach<cv::Vec<ScalarT, 4>>([&](auto &dval, const int *pos)
+                                             { const auto &sval = src.at<cv::Vec4b>(pos);
+                                                dval[0] = inv_resp.at<ScalarT>(sval[0]);
+                                                dval[1] = inv_resp.at<ScalarT>(sval[1]);
+                                                dval[2] = inv_resp.at<ScalarT>(sval[2]);
+                                                dval[3] = sval[3]; });
+        else
         {
             spdlog::error("Can not correct response for {} channel images", cn);
-            return false;
+            CV_Assert(false);
         }
-        return true;
     }
 
     void PanoWeave::weave(const std::vector<cv::Mat> &images, cv::Mat &pano)
@@ -182,24 +217,26 @@ namespace PanoWeave
 
         if (this->buildInternals())
         {
-            const int cn = images.front().channels();
-            pano = cv::Mat::zeros(this->res, CvMatT(cn));
+            cv::UMat pano_l = cv::UMat::zeros(this->res, CvMatT(this->channels));
 
-            for (uint8_t i = 0; i < this->calib.intrinsics.size(); ++i)
+            for (uint8_t i = 0; i < images.size(); ++i)
             {
-                const cv::Mat &img = images[i];
+                cv::Mat img = images[i];
 
-                cv::Mat undist;
-                correctResponse(img, this->calib.response[i], undist);
-
+                cv::UMat undist;
+                if (this->response.empty())
+                    img.convertTo(undist, CvMatT(this->channels));
+                else
+                    correctResponse(img, this->response[i], undist);
                 cv::multiply(undist, this->vigns[i], undist);
 
-                cv::Mat remapped;
-                cv::remap(undist, remapped, static_cast<cv::Mat>(this->maps[i]), cv::noArray(), cv::INTER_NEAREST);
+                cv::UMat remapped;
+                cv::remap(undist, remapped, this->maps_dev[i], cv::noArray(), cv::INTER_NEAREST);
 
-                cv::add(remapped, pano, pano);
+                cv::add(remapped, pano_l, pano_l);
             }
-            cv::multiply(pano, this->mask, pano);
+            cv::multiply(pano_l, this->mask, pano_l);
+            pano_l.copyTo(pano);
         }
         else
         {
@@ -369,6 +406,10 @@ namespace PanoWeave
             return false;
         }
 
+        this->maps_dev.resize(this->maps.size());
+        for (uint8_t i = 0; i < this->maps.size(); ++i)
+            static_cast<cv::Mat>(this->maps[i]).copyTo(this->maps_dev[i]);
+
         this->build_mask = true;
         this->build_maps = false;
         return true;
@@ -403,15 +444,16 @@ namespace PanoWeave
             return;
 
         // build rescale mask from new maps and vignettes
-        this->mask_base = cv::Mat::zeros(this->res, CvMatT(1));
+        this->mask_base = cv::UMat::zeros(this->res, CvMatT(1));
         for (uint8_t cam_idx = 0; cam_idx < this->calib.intrinsics.size(); ++cam_idx)
         {
-            cv::Mat mask_part;
-            cv::remap(this->vigns_base[cam_idx] > 0, mask_part, static_cast<cv::Mat>(this->maps[cam_idx]), cv::noArray(), cv::INTER_NEAREST);
-            this->mask_base += mask_part;
+            cv::UMat mask_part, mask_bin;
+            cv::compare(this->vigns_base[cam_idx], 0, mask_bin, cv::CMP_GT);
+            cv::remap(mask_bin, mask_part, static_cast<cv::UMat>(this->maps[cam_idx]), cv::noArray(), cv::INTER_NEAREST);
+            cv::add(this->mask_base, mask_part, this->mask_base, cv::noArray(), CvMatT(1));
         }
-        this->mask_base.forEach<ScalarT>([&](auto &val, auto pos)
-                                         {
+        this->mask_base.getMat(cv::AccessFlag::ACCESS_RW).forEach<ScalarT>([&](auto &val, auto pos)
+                                                                           {
                                             (void) pos;
                                             if (val > 0) val = 1.0 / val; });
 
@@ -419,13 +461,12 @@ namespace PanoWeave
         this->build_mask = false;
     }
 
-    void mirrorChannels(const cv::Mat &in, int channels, cv::Mat &out)
+    void mirrorChannels(const cv::UMat &in, int channels, cv::UMat &out)
     {
-        auto comp = new cv::Mat[channels];
+        auto comp = std::vector<cv::UMat>(channels);
         for (uint8_t c = 0; c < channels; ++c)
             comp[c] = in;
-        cv::merge(comp, channels, out);
-        delete[] comp;
+        cv::merge(comp, out);
     }
 
     void PanoWeave::buildMirrors()

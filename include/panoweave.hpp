@@ -1,6 +1,5 @@
 #pragma once
 #include <opencv2/core.hpp>
-#include <opencv2/gapi.hpp>
 #include "basalt/calibration/calibration.hpp"
 
 namespace PanoWeave
@@ -21,20 +20,25 @@ namespace PanoWeave
         using EigenT = Eigen::aligned_vector<Eigen::Matrix<ScalarT, T, 1>>;
 
         EigenAlignedCvMat(const cv::Size &res)
-            : eigen_mat(res.area()), cv_mat(res, CvMatT(T), this->eigen_mat.data()) {}
+            : eigen_mat(res.area()), cv_mat(res, CvMatT(T), this->eigen_mat.data()), cv_umat(cv_mat.getUMat(cv::AccessFlag::ACCESS_READ)) {}
 
+        operator Eigen::aligned_vector<Eigen::Matrix<ScalarT, T, 1>> &()
+        {
+            return this->eigen_mat;
+        }
         operator cv::Mat &()
         {
             return this->cv_mat;
         }
-        operator Eigen::aligned_vector<Eigen::Matrix<ScalarT, T, 1>> &()
+        operator cv::UMat &()
         {
-            return this->eigen_mat;
+            return this->cv_umat;
         }
 
     private:
         EigenT eigen_mat;
         cv::Mat cv_mat;
+        cv::UMat cv_umat;
     };
 
     class PanoWeave
@@ -81,13 +85,15 @@ namespace PanoWeave
         int channels = 0;
         cv::Size res;
         std::vector<EigenAlignedCvMat<2>> maps;
+        std::vector<cv::UMat> maps_dev;
         ScalarT vign_thresh = 0.5;
-        cv::Mat depth_dynamic;
+        cv::UMat depth_dynamic;
         ScalarT depth_static = 0.0;
         ScalarT fov_x = M_PI * 2.0, fov_y = M_PI;
         basalt::Calibration<ScalarT> calib;
-        std::vector<cv::Mat> vigns, vigns_base;
-        cv::Mat mask, mask_base;
+        std::vector<cv::UMat> vigns, vigns_base;
+        std::vector<cv::UMat> response;
+        cv::UMat mask, mask_base;
     };
 
 }
