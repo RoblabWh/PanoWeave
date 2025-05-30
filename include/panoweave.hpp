@@ -12,6 +12,7 @@ namespace PanoWeave
     using EigenPoint3T = Eigen::Matrix<ScalarT, 3, 1>;
     using EigenAlVec2T = Eigen::aligned_vector<EigenPoint2T>;
     using EigenAlVec3T = Eigen::aligned_vector<EigenPoint3T>;
+    using CvFovT = cv::Size_<ScalarT>;
 
     template<size_t T>
     class EigenAlignedCvMat
@@ -41,35 +42,38 @@ namespace PanoWeave
     public:
         PanoWeave() = default;
         PanoWeave(const std::string &calibration_filepath);
-        PanoWeave(const std::string &calibration_filepath, ScalarT fov_x, ScalarT fov_y, ScalarT depth);
-        PanoWeave(const std::string &calibration_filepath, ScalarT fov_x, ScalarT fov_y, const cv::Mat &depth);
+        PanoWeave(const std::string &calibration_filepath, ScalarT depth);
+        PanoWeave(const std::string &calibration_filepath, const cv::Mat &depth);
         ~PanoWeave() = default;
 
+        void loadCalibration(const std::string &calibration_filepath);
         void setDepth(ScalarT depth);
         void setDepth(const cv::Mat &depth);
-        void setFov(ScalarT fov_x, ScalarT fov_y);
-        void setResolution(const cv::Size &resolution);
-        void setResolution(int width, int height);
-        void setVignetteThreshold(ScalarT threshold);
 
-        ScalarT fovX() const;
-        ScalarT fovX(ScalarT fov);
-        ScalarT fovY() const;
-        ScalarT fovY(ScalarT fov);
+        cv::Size resolution() const;
+        cv::Size resolution(const cv::Size &resolution);
+        cv::Size resolution(int width, int height);
         int width() const;
         int width(int width);
         int height() const;
         int height(int height);
 
+        CvFovT fov() const;
+        CvFovT fov(ScalarT fov_x, ScalarT fov_y);
+        CvFovT fov(CvFovT fov);
+        ScalarT fovX() const;
+        ScalarT fovX(ScalarT fov);
+        ScalarT fovY() const;
+        ScalarT fovY(ScalarT fov);
+
         ScalarT vignetteThreshold() const;
-        ScalarT vignetteThreshold(ScalarT thr);
+        ScalarT vignetteThreshold(ScalarT threshold);
 
         void weave(const std::vector<cv::Mat> &images, cv::Mat &pano);
         void weave(const std::vector<cv::Mat> &images, ScalarT depth, cv::Mat &pano);
         void weave(const std::vector<cv::Mat> &images, const cv::Mat &depth, cv::Mat &pano);
 
     private:
-        void loadCalibration(const std::string &calibration_filepath);
         bool buildInternals();
         bool buildMaps();
         void buildVignettes();
@@ -84,7 +88,7 @@ namespace PanoWeave
         ScalarT vign_thresh = 0.5;
         cv::UMat depth_dynamic;
         ScalarT depth_static = 0.0;
-        ScalarT fov_x = M_PI * 2.0, fov_y = M_PI;
+        CvFovT fov_ = {M_PI * 2.0, M_PI};
         basalt::Calibration<ScalarT> calib;
         std::vector<cv::UMat> vigns, vigns_base;
         std::vector<cv::UMat> response;

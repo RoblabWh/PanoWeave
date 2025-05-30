@@ -21,16 +21,15 @@ namespace PanoWeave
         this->loadCalibration(filepath);
     }
 
-    PanoWeave::PanoWeave(const std::string &filepath, ScalarT fov_x, ScalarT fov_y, ScalarT depth)
-        : depth_static(depth), fov_x(fov_x), fov_y(fov_y)
+    PanoWeave::PanoWeave(const std::string &filepath, ScalarT depth)
+        : depth_static(depth)
     {
         spdlog::trace("PanoWeave::PanoWeave(const std::string &, ScalarT, ScalarT, ScalarT)");
         this->loadCalibration(filepath);
         this->buildInternals();
     }
 
-    PanoWeave::PanoWeave(const std::string &filepath, ScalarT fov_x, ScalarT fov_y, const cv::Mat &depth)
-        : fov_x(fov_x), fov_y(fov_y)
+    PanoWeave::PanoWeave(const std::string &filepath, const cv::Mat &depth)
     {
         spdlog::trace("PanoWeave::PanoWeave(const std::string &, ScalarT, ScalarT, const cv::Mat &)");
         this->loadCalibration(filepath);
@@ -71,53 +70,66 @@ namespace PanoWeave
         this->build_maps = true;
     }
 
-    void PanoWeave::setFov(ScalarT fov_x, ScalarT fov_y)
+    CvFovT PanoWeave::fov() const
     {
-        spdlog::trace("PanoWeave::setFov(ScalarT, ScalarT)");
-        this->fov_x = fov_x;
-        this->fov_y = fov_y;
-        this->build_maps = true;
+        spdlog::trace("PanoWeave::fov() const");
+        return this->fov_;
     }
-
+    CvFovT PanoWeave::fov(ScalarT fov_x, ScalarT fov_y)
+    {
+        spdlog::trace("PanoWeave::fov(ScalarT, ScalarT)");
+        return this->fov({fov_x, fov_y});
+    }
+    CvFovT PanoWeave::fov(CvFovT fov)
+    {
+        spdlog::trace("PanoWeave::fov(CvFovT)");
+        this->fov_ = fov;
+        this->build_maps = true;
+        return fov;
+    }
     ScalarT PanoWeave::fovX() const
     {
-        return this->fov_x;
+        return this->fov_.width;
     }
     ScalarT PanoWeave::fovX(ScalarT fov)
     {
-        this->setFov(fov, this->fov_y);
+        this->fov(fov, this->fov_.height);
         return fov;
     }
     ScalarT PanoWeave::fovY() const
     {
-        return this->fov_y;
+        return this->fov_.height;
     }
     ScalarT PanoWeave::fovY(ScalarT fov)
     {
-        this->setFov(this->fov_x, fov);
+        this->fov(this->fov_.width, fov);
         return fov;
     }
 
-    void PanoWeave::setResolution(const cv::Size &resolution)
+    cv::Size PanoWeave::resolution() const
     {
-        spdlog::trace("PanoWeave::setResolution(const cv::Size &)");
+        spdlog::trace("PanoWeave::resolution() const");
+        return this->res;
+    }
+    cv::Size PanoWeave::resolution(const cv::Size &resolution)
+    {
+        spdlog::trace("PanoWeave::resolution(const cv::Size &)");
         this->res = resolution;
         this->build_maps = true;
+        return resolution;
     }
-
-    void PanoWeave::setResolution(int width, int height)
+    cv::Size PanoWeave::resolution(int width, int height)
     {
-        spdlog::trace("PanoWeave::setResolution(int, int)");
-        this->setResolution(cv::Size(width, height));
+        spdlog::trace("PanoWeave::resolution(int, int)");
+        return this->resolution({width, height});
     }
-
     int PanoWeave::width() const
     {
         return this->res.width;
     }
     int PanoWeave::width(int width)
     {
-        this->setResolution(width, this->res.height);
+        this->resolution(width, this->res.height);
         return width;
     }
     int PanoWeave::height() const
@@ -126,24 +138,19 @@ namespace PanoWeave
     }
     int PanoWeave::height(int height)
     {
-        this->setResolution(this->res.width, height);
+        this->resolution(this->res.width, height);
         return height;
-    }
-
-    void PanoWeave::setVignetteThreshold(ScalarT threshold)
-    {
-        this->vign_thresh = threshold;
-        this->build_vigns = true;
     }
 
     ScalarT PanoWeave::vignetteThreshold() const
     {
         return this->vign_thresh;
     }
-    ScalarT PanoWeave::vignetteThreshold(ScalarT thr)
+    ScalarT PanoWeave::vignetteThreshold(ScalarT threshold)
     {
-        this->setVignetteThreshold(thr);
-        return thr;
+        this->vign_thresh = threshold;
+        this->build_vigns = true;
+        return threshold;
     }
 
     bool ocl_correctResponse(cv::InputArray _src, cv::InputArray _inv_resp, cv::OutputArray _dst)
@@ -274,7 +281,7 @@ namespace PanoWeave
         return true;
     }
 
-    void createSphericalPoints3(const cv::Size &res, ScalarT fov_x, ScalarT fov_y, cv::Mat &rays)
+    void createSphericalPoints3(const cv::Size &res, const CvFovT &fov, cv::Mat &rays)
     {
         spdlog::trace("createSphericalPoints3(const cv::Size &, ScalarT, ScalarT, cv::Mat &)");
         CV_Assert(rays.type() == CvMatT(3) && rays.size() == res);
@@ -287,8 +294,8 @@ namespace PanoWeave
                                     const int u = pos[1];
                                     const int v = pos[0];
 
-                                    const ScalarT x = (u - width_2) / res.width * fov_x + M_PI_2;
-                                    const ScalarT y = (v - height_2) / res.height * fov_y;
+                                    const ScalarT x = (u - width_2) / res.width * fov.width + M_PI_2;
+                                    const ScalarT y = (v - height_2) / res.height * fov.height;
 
                                     // Calculate X, Y, and Z components of spherical rays
                                     point.x = std::cos(y) * std::sin(x);  // x
@@ -386,7 +393,7 @@ namespace PanoWeave
         }
 
         EigenAlignedCvMat<3> rays(this->res);
-        createSphericalPoints3(this->res, this->fov_x, this->fov_y, rays);
+        createSphericalPoints3(this->res, this->fov_, rays);
 
         // TODO global transform?
         CvAffine3T global_transform;
