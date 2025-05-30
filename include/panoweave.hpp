@@ -1,18 +1,20 @@
 #pragma once
 #include <opencv2/core.hpp>
+#include <opencv2/core/affine.hpp>
 #include "basalt/calibration/calibration.hpp"
 
 namespace PanoWeave
 {
     using ScalarT = float;
     #define CvMatT CV_32FC
+    using CvFovT = cv::Size_<ScalarT>;
     using CvPoint2T = cv::Point_<ScalarT>;
     using CvPoint3T = cv::Point3_<ScalarT>;
+    using CvAffine3T = cv::Affine3<ScalarT>;
     using EigenPoint2T = Eigen::Matrix<ScalarT, 2, 1>;
     using EigenPoint3T = Eigen::Matrix<ScalarT, 3, 1>;
     using EigenAlVec2T = Eigen::aligned_vector<EigenPoint2T>;
     using EigenAlVec3T = Eigen::aligned_vector<EigenPoint3T>;
-    using CvFovT = cv::Size_<ScalarT>;
 
     template<size_t T>
     class EigenAlignedCvMat
@@ -69,6 +71,13 @@ namespace PanoWeave
         ScalarT vignetteThreshold() const;
         ScalarT vignetteThreshold(ScalarT threshold);
 
+        CvAffine3T transform() const;
+        CvAffine3T transform(const CvAffine3T &transform);
+        CvAffine3T transform(const CvAffine3T::Mat3 &rotation,
+                             const CvAffine3T::Vec3 &translation = CvAffine3T::Vec3(0, 0, 0));
+        CvAffine3T transform(const CvAffine3T::Vec3 &rotation,
+                             const CvAffine3T::Vec3 &translation = CvAffine3T::Vec3(0, 0, 0));
+        CvAffine3T transform(const CvAffine3T::Mat4 &affine);
         void weave(const std::vector<cv::Mat> &images, cv::Mat &pano);
         void weave(const std::vector<cv::Mat> &images, ScalarT depth, cv::Mat &pano);
         void weave(const std::vector<cv::Mat> &images, const cv::Mat &depth, cv::Mat &pano);
@@ -89,6 +98,7 @@ namespace PanoWeave
         cv::UMat depth_dynamic;
         ScalarT depth_static = 0.0;
         CvFovT fov_ = {M_PI * 2.0, M_PI};
+        CvAffine3T tf;
         basalt::Calibration<ScalarT> calib;
         std::vector<cv::UMat> vigns, vigns_base;
         std::vector<cv::UMat> response;

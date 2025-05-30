@@ -4,7 +4,6 @@
 #include <fstream>
 #include <cereal/archives/json.hpp>
 #include <spdlog/spdlog.h>
-#include <opencv2/core/affine.hpp>
 #include <opencv2/core/ocl.hpp>
 #include <opencv2/imgproc.hpp>
 
@@ -151,6 +150,29 @@ namespace PanoWeave
         this->vign_thresh = threshold;
         this->build_vigns = true;
         return threshold;
+    }
+
+    CvAffine3T PanoWeave::transform() const
+    {
+        return this->tf;
+    }
+    CvAffine3T PanoWeave::transform(const CvAffine3T &transform)
+    {
+        this->tf = transform;
+        this->build_maps = true;
+        return transform;
+    }
+    CvAffine3T PanoWeave::transform(const CvAffine3T::Mat3 &rotation, const CvAffine3T::Vec3 &translation)
+    {
+        return this->transform(CvAffine3T(rotation, translation));
+    }
+    CvAffine3T PanoWeave::transform(const CvAffine3T::Vec3 &rotation, const CvAffine3T::Vec3 &translation)
+    {
+        return this->transform(CvAffine3T(rotation, translation));
+    }
+    CvAffine3T PanoWeave::transform(const CvAffine3T::Mat4 &affine)
+    {
+        return this->transform(CvAffine3T(affine));
     }
 
     bool ocl_correctResponse(cv::InputArray _src, cv::InputArray _inv_resp, cv::OutputArray _dst)
@@ -394,10 +416,7 @@ namespace PanoWeave
 
         EigenAlignedCvMat<3> rays(this->res);
         createSphericalPoints3(this->res, this->fov_, rays);
-
-        // TODO global transform?
-        CvAffine3T global_transform;
-        transformSphericalPoints3(rays, global_transform, rays);
+        transformSphericalPoints3(rays, this->tf, rays);
 
         if (this->depth_static > 0.0)
         {
