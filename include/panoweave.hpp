@@ -20,7 +20,7 @@ namespace PanoWeave
         using EigenT = Eigen::aligned_vector<Eigen::Matrix<ScalarT, T, 1>>;
 
         EigenAlignedCvMat(const cv::Size &res)
-            : eigen_mat(res.area()), cv_mat(res, CvMatT(T), this->eigen_mat.data()), cv_umat(cv_mat.getUMat(cv::AccessFlag::ACCESS_READ)) {}
+            : eigen_mat(res.area()), cv_mat(res, CvMatT(T), this->eigen_mat.data()) {}
 
         operator Eigen::aligned_vector<Eigen::Matrix<ScalarT, T, 1>> &()
         {
@@ -30,15 +30,10 @@ namespace PanoWeave
         {
             return this->cv_mat;
         }
-        operator cv::UMat &()
-        {
-            return this->cv_umat;
-        }
 
     private:
         EigenT eigen_mat;
         cv::Mat cv_mat;
-        cv::UMat cv_umat;
     };
 
     class PanoWeave

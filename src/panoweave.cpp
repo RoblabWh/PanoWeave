@@ -235,8 +235,8 @@ namespace PanoWeave
 
                 cv::add(remapped, pano_l, pano_l);
             }
-            cv::multiply(pano_l, this->mask, pano_l);
-            pano_l.copyTo(pano);
+            cv::divide(pano_l, this->mask, pano_l);
+            pano_l.convertTo(pano, CV_8UC(this->channels));
         }
         else
         {
@@ -449,13 +449,10 @@ namespace PanoWeave
         {
             cv::UMat mask_part, mask_bin;
             cv::compare(this->vigns_base[cam_idx], 0, mask_bin, cv::CMP_GT);
-            cv::remap(mask_bin, mask_part, static_cast<cv::UMat>(this->maps[cam_idx]), cv::noArray(), cv::INTER_NEAREST);
+            cv::divide(mask_bin, 255, mask_bin);
+            cv::remap(mask_bin, mask_part, this->maps_dev[cam_idx], cv::noArray(), cv::INTER_NEAREST);
             cv::add(this->mask_base, mask_part, this->mask_base, cv::noArray(), CvMatT(1));
         }
-        this->mask_base.getMat(cv::AccessFlag::ACCESS_RW).forEach<ScalarT>([&](auto &val, auto pos)
-                                                                           {
-                                            (void) pos;
-                                            if (val > 0) val = 1.0 / val; });
 
         this->build_mirrors = true;
         this->build_mask = false;
