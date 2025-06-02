@@ -4,6 +4,7 @@
 #include <fstream>
 #include <cereal/archives/json.hpp>
 #include <spdlog/spdlog.h>
+#include <spdlog/cfg/env.h>
 #include <opencv2/core/ocl.hpp>
 #include <opencv2/imgproc.hpp>
 
@@ -12,23 +13,28 @@
 
 namespace PanoWeave
 {
-    using CvAffine3T = cv::Affine3<ScalarT>;
 
-    PanoWeave::PanoWeave(const std::string &filepath)
+    PanoWeave::PanoWeave()
+    {
+        spdlog::trace("PanoWeave::PanoWeave()");
+        spdlog::cfg::load_env_levels();
+    }
+
+    PanoWeave::PanoWeave(const std::string &filepath) : PanoWeave()
     {
         spdlog::trace("PanoWeave::PanoWeave(const std::string &)");
         this->loadCalibration(filepath);
     }
 
-    PanoWeave::PanoWeave(const std::string &filepath, ScalarT depth)
-        : depth_static(depth)
+    PanoWeave::PanoWeave(const std::string &filepath, ScalarT depth) : PanoWeave()
     {
         spdlog::trace("PanoWeave::PanoWeave(const std::string &, ScalarT, ScalarT, ScalarT)");
         this->loadCalibration(filepath);
+        this->depth_static = depth;
         this->buildInternals();
     }
 
-    PanoWeave::PanoWeave(const std::string &filepath, const cv::Mat &depth)
+    PanoWeave::PanoWeave(const std::string &filepath, const cv::Mat &depth) : PanoWeave()
     {
         spdlog::trace("PanoWeave::PanoWeave(const std::string &, ScalarT, ScalarT, const cv::Mat &)");
         this->loadCalibration(filepath);

@@ -42,7 +42,7 @@ namespace PanoWeave
     class PanoWeave
     {
     public:
-        PanoWeave() = default;
+        PanoWeave();
         PanoWeave(const std::string &calibration_filepath);
         PanoWeave(const std::string &calibration_filepath, ScalarT depth);
         PanoWeave(const std::string &calibration_filepath, const cv::Mat &depth);
@@ -73,11 +73,12 @@ namespace PanoWeave
 
         CvAffine3T transform() const;
         CvAffine3T transform(const CvAffine3T &transform);
+        CvAffine3T transform(const CvAffine3T::Mat4 &affine);
         CvAffine3T transform(const CvAffine3T::Mat3 &rotation,
                              const CvAffine3T::Vec3 &translation = CvAffine3T::Vec3(0, 0, 0));
         CvAffine3T transform(const CvAffine3T::Vec3 &rotation,
                              const CvAffine3T::Vec3 &translation = CvAffine3T::Vec3(0, 0, 0));
-        CvAffine3T transform(const CvAffine3T::Mat4 &affine);
+
         void weave(const std::vector<cv::Mat> &images, cv::Mat &pano);
         void weave(const std::vector<cv::Mat> &images, ScalarT depth, cv::Mat &pano);
         void weave(const std::vector<cv::Mat> &images, const cv::Mat &depth, cv::Mat &pano);
