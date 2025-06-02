@@ -15,7 +15,6 @@ endif(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 
 add_subdirectory(thirdparty/basalt-headers)
 
-# file(GLOB_RECURSE src_list LIST_DIRECTORY false src/*.cpp)
 list(APPEND src_list src/panoweave.cpp)
 file(GLOB_RECURSE hdr_list LIST_DIRECTORY false include/*.hpp)
 file(GLOB_RECURSE cl_list LIST_DIRECTORY false src/*.cl)
@@ -47,6 +46,10 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED YES
 )
+
+string(TOLOWER ${PROJECT_NAME} PYBIND_PROJECT_NAME)
+pybind11_add_module(${PYBIND_PROJECT_NAME} src/panoweave_pybind.cpp)
+target_link_libraries(${PYBIND_PROJECT_NAME} PUBLIC ${PROJECT_NAME})
 
 option(BUILD_EXAMPLES "Build example applications for PanoWeave" ON)
 if(${BUILD_EXAMPLES})
