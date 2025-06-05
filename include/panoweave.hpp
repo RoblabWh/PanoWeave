@@ -80,8 +80,9 @@ namespace PanoWeave
                              const CvAffine3T::Vec3 &translation = CvAffine3T::Vec3(0, 0, 0));
 
         void stitch(const std::vector<cv::Mat> &images, cv::Mat &pano);
-        void stitch(const std::vector<cv::Mat> &images, ScalarT depth, cv::Mat &pano);
-        void stitch(const std::vector<cv::Mat> &images, const cv::Mat &depth, cv::Mat &pano);
+        void stitch(const std::vector<cv::Mat> &images, const std::vector<ScalarT> &exposure, cv::Mat &pano);
+        void stitch(const std::vector<cv::Mat> &images, const std::vector<ScalarT> &exposure, ScalarT depth, cv::Mat &pano);
+        void stitch(const std::vector<cv::Mat> &images, const std::vector<ScalarT> &exposure, const cv::Mat &depth, cv::Mat &pano);
 
     private:
         bool buildInternals();

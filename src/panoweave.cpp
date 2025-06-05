@@ -258,6 +258,11 @@ namespace PanoWeave
     void Stitcher::stitch(const std::vector<cv::Mat> &images, cv::Mat &pano)
     {
         spdlog::trace("Stitcher::stitch(const std::vector<cv::Mat> &, cv::Mat &)");
+        this->stitch(images, std::vector<ScalarT>(images.size(), 1.0), pano);
+    }
+    void Stitcher::stitch(const std::vector<cv::Mat> &images, const std::vector<ScalarT> &exposure, cv::Mat &pano)
+    {
+        spdlog::trace("Stitcher::stitch(const std::vector<cv::Mat> &, const std::vector<ScalarT> &, cv::Mat &)");
 
         if (images.front().channels() != this->channels)
         {
@@ -267,6 +272,10 @@ namespace PanoWeave
 
         if (this->buildInternals())
         {
+            std::vector<ScalarT> exp_sort = exposure;
+            std::sort(exp_sort.begin(), exp_sort.end());
+            ScalarT target_exposure = exp_sort[exp_sort.size() / 2];
+
             cv::UMat pano_l = cv::UMat::zeros(this->res, CvMatT(this->channels));
 
             for (uint8_t i = 0; i < images.size(); ++i)
@@ -279,6 +288,7 @@ namespace PanoWeave
                 else
                     correctResponse(img, this->response[i], undist);
                 cv::multiply(undist, this->vigns[i], undist);
+                cv::multiply(undist, target_exposure / exposure[i], undist);
 
                 cv::UMat remapped;
                 cv::remap(undist, remapped, this->maps_dev[i], cv::noArray(), cv::INTER_NEAREST);
@@ -294,18 +304,18 @@ namespace PanoWeave
         }
     }
 
-    void Stitcher::stitch(const std::vector<cv::Mat> &images, ScalarT depth, cv::Mat &pano)
+    void Stitcher::stitch(const std::vector<cv::Mat> &images, const std::vector<ScalarT> &exposure, ScalarT depth, cv::Mat &pano)
     {
-        spdlog::trace("Stitcher::stitch(const std::vector<cv::Mat> &, ScalarT, cv::Mat &)");
+        spdlog::trace("Stitcher::stitch(const std::vector<cv::Mat> &, const std::vector<ScalarT> &, ScalarT, cv::Mat &)");
         this->setDepth(depth);
-        this->stitch(images, pano);
+        this->stitch(images, exposure, pano);
     }
 
-    void Stitcher::stitch(const std::vector<cv::Mat> &images, const cv::Mat &depth, cv::Mat &pano)
+    void Stitcher::stitch(const std::vector<cv::Mat> &images, const std::vector<ScalarT> &exposure, const cv::Mat &depth, cv::Mat &pano)
     {
-        spdlog::trace("Stitcher::stitch(const std::vector<cv::Mat> &, const cv::Mat &, cv::Mat &)");
+        spdlog::trace("Stitcher::stitch(const std::vector<cv::Mat> &, const std::vector<ScalarT> &, const cv::Mat &, cv::Mat &)");
         this->setDepth(depth);
-        this->stitch(images, pano);
+        this->stitch(images, exposure, pano);
     }
 
     bool Stitcher::buildInternals()

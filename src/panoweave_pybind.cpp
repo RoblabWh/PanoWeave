@@ -103,6 +103,10 @@ namespace PanoWeave
 
         PyCvMat stitch(std::vector<PyCvMat> &images)
         {
+            return this->stitch(images, std::vector<ScalarT>(images.size(), 1.0));
+        }
+        PyCvMat stitch(std::vector<PyCvMat> &images, const std::vector<ScalarT> &exposure)
+        {
             std::vector<cv::Mat> cv_images;
             cv_images.reserve(images.size());
             for (auto &img : images)
@@ -113,18 +117,18 @@ namespace PanoWeave
             auto pano = PyCvMat({static_cast<size_t>(Stitcher::height()), static_cast<size_t>(Stitcher::width()), static_cast<size_t>(images[0].shape(2))});
             auto cv_pano = cv::Mat(pano.shape(0), pano.shape(1), CV_8UC(pano.shape(2)), pano.mutable_data());
 
-            Stitcher::stitch(cv_images, cv_pano);
+            Stitcher::stitch(cv_images, exposure, cv_pano);
             return pano;
         }
-        PyCvMat stitch(std::vector<PyCvMat> &images, ScalarT depth)
+        PyCvMat stitch(std::vector<PyCvMat> &images, const std::vector<ScalarT> &exposure, ScalarT depth)
         {
             Stitcher::setDepth(depth);
-            return this->stitch(images);
+            return this->stitch(images, exposure);
         }
-        PyCvMat stitch(std::vector<PyCvMat> &images, PyCvMat depth)
+        PyCvMat stitch(std::vector<PyCvMat> &images, const std::vector<ScalarT> &exposure, PyCvMat depth)
         {
             this->setDepth(depth);
-            return this->stitch(images);
+            return this->stitch(images, exposure);
         }
     };
 
@@ -168,8 +172,9 @@ namespace PanoWeave
                  pybind11::arg("rotation"), pybind11::arg("translation") = pybind11::none())
 
             .def("stitch", static_cast<PyCvMat (PyStitcher::*)(std::vector<PyCvMat> &)>(&PyStitcher::stitch))
-            .def("stitch", static_cast<PyCvMat (PyStitcher::*)(std::vector<PyCvMat> &, ScalarT)>(&PyStitcher::stitch))
-            .def("stitch", static_cast<PyCvMat (PyStitcher::*)(std::vector<PyCvMat> &, PyCvMat)>(&PyStitcher::stitch));
+            .def("stitch", static_cast<PyCvMat (PyStitcher::*)(std::vector<PyCvMat> &, const std::vector<ScalarT> &)>(&PyStitcher::stitch))
+            .def("stitch", static_cast<PyCvMat (PyStitcher::*)(std::vector<PyCvMat> &, const std::vector<ScalarT> &, ScalarT)>(&PyStitcher::stitch))
+            .def("stitch", static_cast<PyCvMat (PyStitcher::*)(std::vector<PyCvMat> &, const std::vector<ScalarT> &, PyCvMat)>(&PyStitcher::stitch));
     }
 
 }
