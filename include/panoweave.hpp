@@ -71,6 +71,9 @@ namespace PanoWeave
         ScalarT vignetteThreshold() const;
         ScalarT vignetteThreshold(ScalarT threshold);
 
+        bool useMaskAsVignette() const;
+        bool useMaskAsVignette(bool use);
+
         CvAffine3T transform() const;
         CvAffine3T transform(const CvAffine3T &transform);
         CvAffine3T transform(const CvAffine3T::Mat4 &affine);
@@ -92,6 +95,7 @@ namespace PanoWeave
         void buildMirrors();
 
         bool build_maps = true, build_vigns = true, build_mask = true, build_mirrors = true;
+        bool use_mask_as_vign = false;
         int channels = 0;
         cv::Size res;
         std::vector<EigenAlignedCvMat<2>> maps;

@@ -165,6 +165,9 @@ namespace PanoWeave
             .def("vignetteThreshold", static_cast<ScalarT (Stitcher::*)() const>(&Stitcher::vignetteThreshold))
             .def("vignetteThreshold", static_cast<ScalarT (Stitcher::*)(ScalarT)>(&Stitcher::vignetteThreshold))
 
+            .def("useMaskAsVignette", static_cast<bool (Stitcher::*)() const>(&Stitcher::useMaskAsVignette))
+            .def("useMaskAsVignette", static_cast<bool (Stitcher::*)(bool)>(&Stitcher::useMaskAsVignette))
+
             .def("transform", static_cast<ndarray<ScalarT> (PyStitcher::*)() const>(&PyStitcher::transform))
             .def("transform", static_cast<ndarray<ScalarT> (PyStitcher::*)(const ndarray<ScalarT> &, const std::optional<std::tuple<ScalarT, ScalarT, ScalarT>> &)>(&PyStitcher::transform),
                  pybind11::arg("matrix"), pybind11::arg("translation") = pybind11::none())

@@ -168,6 +168,20 @@ namespace PanoWeave
         return threshold;
     }
 
+    bool Stitcher::useMaskAsVignette() const
+    {
+        spdlog::trace("Stitcher::useMaskAsVignette() const");
+        return this->use_mask_as_vign;
+    }
+    bool Stitcher::useMaskAsVignette(bool use)
+    {
+        spdlog::trace("Stitcher::useMaskAsVignette(bool)");
+        this->use_mask_as_vign = use;
+        this->build_mask = this->build_mask || use;
+        this->build_vigns = this->build_vigns || !use;
+        return use;
+    }
+
     CvAffine3T Stitcher::transform() const
     {
         spdlog::trace("Stitcher::transform() const");
@@ -508,6 +522,8 @@ namespace PanoWeave
             cv::divide(mask_bin, 255, mask_bin);
             cv::remap(mask_bin, mask_part, this->maps_dev[cam_idx], cv::noArray(), cv::INTER_NEAREST);
             cv::add(this->mask_base, mask_part, this->mask_base, cv::noArray(), CvMatT(1));
+            if (this->use_mask_as_vign)
+                mask_bin.convertTo(this->vigns_base[cam_idx], CvMatT(1));
         }
 
         this->build_mirrors = true;
