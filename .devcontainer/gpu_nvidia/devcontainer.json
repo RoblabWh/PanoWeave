@@ -1,0 +1,27 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/cpp
+{
+	"name": "PanoWeave NVIDIA GPU",
+	"build": {
+		"dockerfile": "Containerfile"
+	},
+	"runArgs": [
+		"--gpus", "all",
+		"--ipc=host",
+		"--ulimit", "memlock=-1",
+		"--ulimit", "stack=67108864",
+
+		//TODO Modify path to dataset location
+		"--volume=/var/datasets:/data:ro"
+	],
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-vscode.cpptools-extension-pack",
+				"vadimcn.vscode-lldb",
+				"charliermarsh.ruff",
+				"galarius.vscode-opencl"
+			]
+		}
+	}
+}

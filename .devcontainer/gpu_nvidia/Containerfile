@@ -1,0 +1,27 @@
+FROM docker.io/nvidia/cuda:12.5.1-devel-ubuntu24.04
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get upgrade --yes --no-install-recommends && \
+    apt-get install --yes --no-install-recommends \
+        clang cmake ninja-build git ca-certificates \
+        libspdlog-dev libargparse-dev pybind11-dev python3-numpy python3-scipy libboost-serialization-dev \
+    && \
+    apt-get install --yes nvidia-opencl-dev
+
+ARG build_threads=0
+ARG opencv_version=4.11.0
+ARG opencv_modules=core,videoio,highgui,python3
+RUN apt-get update && apt-get install --yes --no-install-recommends qt6-base-dev qt6-wayland \
+        pkg-config libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavdevice-dev && \
+    cd /tmp && \
+    git clone https://github.com/opencv/opencv.git --branch ${opencv_version} --depth 1 && \
+    cd opencv && \
+    cmake -Bbuild -GNinja -DBUILD_LIST=${opencv_modules} -DWITH_QT=ON -DWITH_FFMPEG=ON -DCMAKE_BUILD_TYPE=Release && \
+    cmake --build build --parallel $(test ${build_threads} -eq 0 && nproc || (printf ${build_threads})) && \
+    cmake --install build && \
+    rm -rf /tmp/*
+
+# Add non-root user
+RUN useradd -m -s /bin/bash user && \
+    chown -R user:user /home/user
