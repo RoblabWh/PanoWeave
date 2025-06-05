@@ -39,14 +39,14 @@ namespace PanoWeave
         cv::Mat cv_mat;
     };
 
-    class PanoWeave
+    class Stitcher
     {
     public:
-        PanoWeave();
-        PanoWeave(const std::string &calibration_filepath);
-        PanoWeave(const std::string &calibration_filepath, ScalarT depth);
-        PanoWeave(const std::string &calibration_filepath, const cv::Mat &depth);
-        ~PanoWeave() = default;
+        Stitcher();
+        Stitcher(const std::string &calibration_filepath);
+        Stitcher(const std::string &calibration_filepath, ScalarT depth);
+        Stitcher(const std::string &calibration_filepath, const cv::Mat &depth);
+        ~Stitcher() = default;
 
         void loadCalibration(const std::string &calibration_filepath);
         void setDepth(ScalarT depth);
@@ -79,9 +79,9 @@ namespace PanoWeave
         CvAffine3T transform(const CvAffine3T::Vec3 &rotation,
                              const CvAffine3T::Vec3 &translation = CvAffine3T::Vec3(0, 0, 0));
 
-        void weave(const std::vector<cv::Mat> &images, cv::Mat &pano);
-        void weave(const std::vector<cv::Mat> &images, ScalarT depth, cv::Mat &pano);
-        void weave(const std::vector<cv::Mat> &images, const cv::Mat &depth, cv::Mat &pano);
+        void stitch(const std::vector<cv::Mat> &images, cv::Mat &pano);
+        void stitch(const std::vector<cv::Mat> &images, ScalarT depth, cv::Mat &pano);
+        void stitch(const std::vector<cv::Mat> &images, const cv::Mat &depth, cv::Mat &pano);
 
     private:
         bool buildInternals();

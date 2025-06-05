@@ -14,37 +14,37 @@
 namespace PanoWeave
 {
 
-    PanoWeave::PanoWeave()
+    Stitcher::Stitcher()
     {
-        spdlog::trace("PanoWeave::PanoWeave()");
+        spdlog::trace("Stitcher::Stitcher()");
         spdlog::cfg::load_env_levels();
     }
 
-    PanoWeave::PanoWeave(const std::string &filepath) : PanoWeave()
+    Stitcher::Stitcher(const std::string &filepath) : Stitcher()
     {
-        spdlog::trace("PanoWeave::PanoWeave(const std::string &)");
+        spdlog::trace("Stitcher::Stitcher(const std::string &)");
         this->loadCalibration(filepath);
     }
 
-    PanoWeave::PanoWeave(const std::string &filepath, ScalarT depth) : PanoWeave()
+    Stitcher::Stitcher(const std::string &filepath, ScalarT depth) : Stitcher()
     {
-        spdlog::trace("PanoWeave::PanoWeave(const std::string &, ScalarT, ScalarT, ScalarT)");
+        spdlog::trace("Stitcher::Stitcher(const std::string &, ScalarT, ScalarT, ScalarT)");
         this->loadCalibration(filepath);
         this->depth_static = depth;
         this->buildInternals();
     }
 
-    PanoWeave::PanoWeave(const std::string &filepath, const cv::Mat &depth) : PanoWeave()
+    Stitcher::Stitcher(const std::string &filepath, const cv::Mat &depth) : Stitcher()
     {
-        spdlog::trace("PanoWeave::PanoWeave(const std::string &, ScalarT, ScalarT, const cv::Mat &)");
+        spdlog::trace("Stitcher::Stitcher(const std::string &, ScalarT, ScalarT, const cv::Mat &)");
         this->loadCalibration(filepath);
         depth.copyTo(this->depth_dynamic);
         this->buildInternals();
     }
 
-    void PanoWeave::loadCalibration(const std::string &filepath)
+    void Stitcher::loadCalibration(const std::string &filepath)
     {
-        spdlog::trace("PanoWeave::loadCalibration(const std::string &)");
+        spdlog::trace("Stitcher::loadCalibration(const std::string &)");
         std::ifstream file(filepath);
         cereal::JSONInputArchive archive(file);
         basalt::Calibration<double> calib;
@@ -59,131 +59,146 @@ namespace PanoWeave
         this->build_vigns = true;
     }
 
-    void PanoWeave::setDepth(ScalarT depth)
+    void Stitcher::setDepth(ScalarT depth)
     {
-        spdlog::trace("PanoWeave::setDepth(ScalarT)");
+        spdlog::trace("Stitcher::setDepth(ScalarT)");
         this->depth_static = depth;
         this->depth_dynamic.release();
         this->build_maps = true;
     }
 
-    void PanoWeave::setDepth(const cv::Mat &depth)
+    void Stitcher::setDepth(const cv::Mat &depth)
     {
-        spdlog::trace("PanoWeave::setDepth(const cv::Mat &)");
+        spdlog::trace("Stitcher::setDepth(const cv::Mat &)");
         this->depth_static = 0.0;
         depth.copyTo(this->depth_dynamic);
         this->build_maps = true;
     }
 
-    CvFovT PanoWeave::fov() const
+    CvFovT Stitcher::fov() const
     {
-        spdlog::trace("PanoWeave::fov() const");
+        spdlog::trace("Stitcher::fov() const");
         return this->fov_;
     }
-    CvFovT PanoWeave::fov(ScalarT fov_x, ScalarT fov_y)
+    CvFovT Stitcher::fov(ScalarT fov_x, ScalarT fov_y)
     {
-        spdlog::trace("PanoWeave::fov(ScalarT, ScalarT)");
+        spdlog::trace("Stitcher::fov(ScalarT, ScalarT)");
         return this->fov({fov_x, fov_y});
     }
-    CvFovT PanoWeave::fov(CvFovT fov)
+    CvFovT Stitcher::fov(CvFovT fov)
     {
-        spdlog::trace("PanoWeave::fov(CvFovT)");
+        spdlog::trace("Stitcher::fov(CvFovT)");
         this->fov_ = fov;
         this->build_maps = true;
         return fov;
     }
-    ScalarT PanoWeave::fovX() const
+    ScalarT Stitcher::fovX() const
     {
+        spdlog::trace("Stitcher::fovX() const");
         return this->fov_.width;
     }
-    ScalarT PanoWeave::fovX(ScalarT fov)
+    ScalarT Stitcher::fovX(ScalarT fov)
     {
+        spdlog::trace("Stitcher::fovX(ScalarT)");
         this->fov(fov, this->fov_.height);
         return fov;
     }
-    ScalarT PanoWeave::fovY() const
+    ScalarT Stitcher::fovY() const
     {
+        spdlog::trace("Stitcher::fovY() const");
         return this->fov_.height;
     }
-    ScalarT PanoWeave::fovY(ScalarT fov)
+    ScalarT Stitcher::fovY(ScalarT fov)
     {
+        spdlog::trace("Stitcher::fovY(ScalarT)");
         this->fov(this->fov_.width, fov);
         return fov;
     }
 
-    cv::Size PanoWeave::resolution() const
+    cv::Size Stitcher::resolution() const
     {
-        spdlog::trace("PanoWeave::resolution() const");
+        spdlog::trace("Stitcher::resolution() const");
         return this->res;
     }
-    cv::Size PanoWeave::resolution(const cv::Size &resolution)
+    cv::Size Stitcher::resolution(const cv::Size &resolution)
     {
-        spdlog::trace("PanoWeave::resolution(const cv::Size &)");
+        spdlog::trace("Stitcher::resolution(const cv::Size &)");
         this->res = resolution;
         this->build_maps = true;
         return resolution;
     }
-    cv::Size PanoWeave::resolution(int width, int height)
+    cv::Size Stitcher::resolution(int width, int height)
     {
-        spdlog::trace("PanoWeave::resolution(int, int)");
+        spdlog::trace("Stitcher::resolution(int, int)");
         return this->resolution({width, height});
     }
-    int PanoWeave::width() const
+    int Stitcher::width() const
     {
+        spdlog::trace("Stitcher::width() const");
         return this->res.width;
     }
-    int PanoWeave::width(int width)
+    int Stitcher::width(int width)
     {
+        spdlog::trace("Stitcher::width(int)");
         this->resolution(width, this->res.height);
         return width;
     }
-    int PanoWeave::height() const
+    int Stitcher::height() const
     {
+        spdlog::trace("Stitcher::height() const");
         return this->res.height;
     }
-    int PanoWeave::height(int height)
+    int Stitcher::height(int height)
     {
+        spdlog::trace("Stitcher::height(int)");
         this->resolution(this->res.width, height);
         return height;
     }
 
-    ScalarT PanoWeave::vignetteThreshold() const
+    ScalarT Stitcher::vignetteThreshold() const
     {
+        spdlog::trace("Stitcher::vignetteThreshold() const");
         return this->vign_thresh;
     }
-    ScalarT PanoWeave::vignetteThreshold(ScalarT threshold)
+    ScalarT Stitcher::vignetteThreshold(ScalarT threshold)
     {
+        spdlog::trace("Stitcher::vignetteThreshold(ScalarT)");
         this->vign_thresh = threshold;
         this->build_vigns = true;
         return threshold;
     }
 
-    CvAffine3T PanoWeave::transform() const
+    CvAffine3T Stitcher::transform() const
     {
+        spdlog::trace("Stitcher::transform() const");
         return this->tf;
     }
-    CvAffine3T PanoWeave::transform(const CvAffine3T &transform)
+    CvAffine3T Stitcher::transform(const CvAffine3T &transform)
     {
+        spdlog::trace("Stitcher::transform(const CvAffine3T &)");
         this->tf = transform;
         this->build_maps = true;
         return transform;
     }
-    CvAffine3T PanoWeave::transform(const CvAffine3T::Mat3 &rotation, const CvAffine3T::Vec3 &translation)
+    CvAffine3T Stitcher::transform(const CvAffine3T::Mat3 &rotation, const CvAffine3T::Vec3 &translation)
     {
+        spdlog::trace("Stitcher::transform(const CvAffine3T::Mat3 &, const CvAffine3T::Vec3 &)");
         return this->transform(CvAffine3T(rotation, translation));
     }
-    CvAffine3T PanoWeave::transform(const CvAffine3T::Vec3 &rotation, const CvAffine3T::Vec3 &translation)
+    CvAffine3T Stitcher::transform(const CvAffine3T::Vec3 &rotation, const CvAffine3T::Vec3 &translation)
     {
+        spdlog::trace("Stitcher::transform(const CvAffine3T::Vec3 &, const CvAffine3T::Vec3 &)");
         return this->transform(CvAffine3T(rotation, translation));
     }
-    CvAffine3T PanoWeave::transform(const CvAffine3T::Mat4 &affine)
+    CvAffine3T Stitcher::transform(const CvAffine3T::Mat4 &affine)
     {
+        spdlog::trace("Stitcher::transform(const CvAffine3T::Mat4 &)");
         return this->transform(CvAffine3T(affine));
     }
 
     bool ocl_correctResponse(cv::InputArray _src, cv::InputArray _inv_resp, cv::OutputArray _dst)
     {
-        spdlog::trace("PanoWeave::ocl_correctResponse(cv::InputArray, cv::InputArray, cv::OutputArray)");
+        spdlog::trace("ocl_correctResponse(cv::InputArray, cv::InputArray, cv::OutputArray)");
         const int rows_per_wi = cv::ocl::Device::getDefault().isIntel() ? 4 : 1;
 
         const int tp = _src.type();
@@ -206,7 +221,7 @@ namespace PanoWeave
 
     void correctResponse(cv::InputArray _src, cv::InputArray _inv_resp, cv::OutputArray _dst)
     {
-        spdlog::trace("PanoWeave::correctResponse(cv::InputArray, cv::InputArray, cv::OutputArray)");
+        spdlog::trace("correctResponse(cv::InputArray, cv::InputArray, cv::OutputArray)");
         const int cn = _src.channels();
         _dst.create(_src.size(), CvMatT(cn));
 
@@ -240,9 +255,9 @@ namespace PanoWeave
         }
     }
 
-    void PanoWeave::weave(const std::vector<cv::Mat> &images, cv::Mat &pano)
+    void Stitcher::stitch(const std::vector<cv::Mat> &images, cv::Mat &pano)
     {
-        spdlog::trace("PanoWeave::weave(const std::vector<cv::Mat> &, cv::Mat &)");
+        spdlog::trace("Stitcher::stitch(const std::vector<cv::Mat> &, cv::Mat &)");
 
         if (images.front().channels() != this->channels)
         {
@@ -275,27 +290,27 @@ namespace PanoWeave
         }
         else
         {
-            spdlog::warn("weave(): Unable to stitch image, failed building internals");
+            spdlog::warn("stitch(): Unable to stitch image, failed building internals");
         }
     }
 
-    void PanoWeave::weave(const std::vector<cv::Mat> &images, ScalarT depth, cv::Mat &pano)
+    void Stitcher::stitch(const std::vector<cv::Mat> &images, ScalarT depth, cv::Mat &pano)
     {
-        spdlog::trace("PanoWeave::weave(const std::vector<cv::Mat> &, ScalarT, cv::Mat &)");
+        spdlog::trace("Stitcher::stitch(const std::vector<cv::Mat> &, ScalarT, cv::Mat &)");
         this->setDepth(depth);
-        this->weave(images, pano);
+        this->stitch(images, pano);
     }
 
-    void PanoWeave::weave(const std::vector<cv::Mat> &images, const cv::Mat &depth, cv::Mat &pano)
+    void Stitcher::stitch(const std::vector<cv::Mat> &images, const cv::Mat &depth, cv::Mat &pano)
     {
-        spdlog::trace("PanoWeave::weave(const std::vector<cv::Mat> &, const cv::Mat &, cv::Mat &)");
+        spdlog::trace("Stitcher::stitch(const std::vector<cv::Mat> &, const cv::Mat &, cv::Mat &)");
         this->setDepth(depth);
-        this->weave(images, pano);
+        this->stitch(images, pano);
     }
 
-    bool PanoWeave::buildInternals()
+    bool Stitcher::buildInternals()
     {
-        spdlog::trace("PanoWeave::buildInternals()");
+        spdlog::trace("Stitcher::buildInternals()");
 
         if (!this->buildMaps())
         {
@@ -406,9 +421,9 @@ namespace PanoWeave
         }
     }
 
-    bool PanoWeave::buildMaps()
+    bool Stitcher::buildMaps()
     {
-        spdlog::trace("PanoWeave::buildMaps()");
+        spdlog::trace("Stitcher::buildMaps()");
         if (!this->build_maps)
         {
             return true;
@@ -447,21 +462,19 @@ namespace PanoWeave
         return true;
     }
 
-    void PanoWeave::buildVignettes()
+    void Stitcher::buildVignettes()
     {
-        spdlog::trace("PanoWeave::buildVignettes()");
+        spdlog::trace("Stitcher::buildVignettes()");
         if (!this->build_vigns)
             return;
 
-        auto vmaps = this->calib.vignette_maps();
+        auto vmaps = this->calib.vignette_maps(this->vign_thresh);
 
         this->vigns_base.resize(vmaps.size());
         for (uint8_t cam_idx = 0; cam_idx < vmaps.size(); ++cam_idx)
         {
             auto vmap = vmaps[cam_idx];
             auto vign = cv::Mat(vmap.rows(), vmap.cols(), CvMatT(1), vmap.data());
-
-            // TODO maybe dont copy
             vign.copyTo(this->vigns_base[cam_idx]);
         }
 
@@ -470,8 +483,9 @@ namespace PanoWeave
         this->build_vigns = false;
     }
 
-    void PanoWeave::buildMask()
+    void Stitcher::buildMask()
     {
+        spdlog::trace("Stitcher::buildMask()");
         if (!this->build_mask)
             return;
 
@@ -492,14 +506,16 @@ namespace PanoWeave
 
     void mirrorChannels(const cv::UMat &in, int channels, cv::UMat &out)
     {
+        spdlog::trace("mirrorChannels(const cv::UMat &, int, cv::UMat &)");
         auto comp = std::vector<cv::UMat>(channels);
         for (uint8_t c = 0; c < channels; ++c)
             comp[c] = in;
         cv::merge(comp, out);
     }
 
-    void PanoWeave::buildMirrors()
+    void Stitcher::buildMirrors()
     {
+        spdlog::trace("Stitcher::buildMirrors()");
         if (!this->build_mirrors)
             return;
 

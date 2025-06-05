@@ -80,7 +80,7 @@ int main(int argc, char **argv)
                   << std::endl;
     }
 
-    auto stitcher = std::make_unique<PanoWeave::PanoWeave>(calib_path);
+    auto stitcher = std::make_unique<PanoWeave::Stitcher>(calib_path);
     stitcher->resolution(width, height);
     stitcher->setDepth(1);
 
@@ -101,7 +101,7 @@ int main(int argc, char **argv)
     cv::Mat pano;
     if (skip_first)
     {
-        stitcher->weave(imgs, pano);
+        stitcher->stitch(imgs, pano);
     }
 
     std::cout << "Resolution: " << width << 'x' << height << '\n'
@@ -111,7 +111,7 @@ int main(int argc, char **argv)
     for (uint64_t i = 0; i < iter; ++i)
     {
         const auto start = std::chrono::steady_clock::now();
-        stitcher->weave(imgs, pano);
+        stitcher->stitch(imgs, pano);
         const auto end = std::chrono::steady_clock::now();
         const auto d = end - start;
         duration += d;
