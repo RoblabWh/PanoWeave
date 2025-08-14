@@ -109,6 +109,12 @@ namespace PanoWeave
         std::vector<cv::UMat> vigns, vigns_base;
         std::vector<cv::UMat> response;
         cv::UMat mask, mask_base;
+
+        // Additional CUDA resources
+        std::vector<cv::cuda::GpuMat*> mapx_cudev, mapy_cudev;
+        std::vector<cv::cuda::GpuMat*> vigns_cudev;
+        std::vector<cv::cuda::GpuMat*> response_cudev;
+        cv::cuda::GpuMat *mask_cudev = nullptr;
     };
 
 }

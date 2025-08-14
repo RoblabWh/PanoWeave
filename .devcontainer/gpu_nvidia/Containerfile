@@ -11,13 +11,14 @@ RUN apt-get update && \
 
 ARG build_threads=0
 ARG opencv_version=4.11.0
-ARG opencv_modules=core,videoio,highgui,python3
+ARG opencv_modules=core,videoio,highgui,python3,cudev,cudaarithm,cudawarping
 RUN apt-get update && apt-get install --yes --no-install-recommends qt6-base-dev qt6-wayland \
         pkg-config libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavdevice-dev && \
     cd /tmp && \
     git clone https://github.com/opencv/opencv.git --branch ${opencv_version} --depth 1 && \
+    git clone https://github.com/opencv/opencv_contrib.git --branch ${opencv_version} --depth 1 && \
     cd opencv && \
-    cmake -Bbuild -GNinja -DBUILD_LIST=${opencv_modules} -DWITH_QT=ON -DWITH_FFMPEG=ON -DCMAKE_BUILD_TYPE=Release && \
+    cmake -Bbuild -GNinja -DOPENCV_EXTRA_MODULES_PATH=../opencv_contrib/modules -DBUILD_LIST=${opencv_modules} -DWITH_CUDA=ON -DWITH_QT=ON -DWITH_FFMPEG=ON -DCMAKE_BUILD_TYPE=Release && \
     cmake --build build --parallel $(test ${build_threads} -eq 0 && nproc || (printf ${build_threads})) && \
     cmake --install build && \
     rm -rf /tmp/*

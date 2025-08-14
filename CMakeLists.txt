@@ -1,7 +1,16 @@
 cmake_minimum_required(VERSION 3.23)
 project(PanoWeave LANGUAGES CXX)
 
-find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc)
+option(WITH_CUDA "Build with CUDA support instead of T-API" OFF)
+if(WITH_CUDA)
+    enable_language(CUDA)
+    list(APPEND src_list src/correct_response.cu)
+    list(APPEND OPENCV_MODULES cudaarithm cudawarping)
+    list(APPEND PUBLIC_LINK_LIBS opencv_cudaarithm opencv_cudawarping)
+    list(APPEND COMPILE_DEFINITIONS WITH_CUDA)
+endif()
+
+find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc ${OPENCV_MODULES})
 find_package(spdlog REQUIRED)
 find_package(pybind11 REQUIRED)
 
@@ -40,8 +49,10 @@ target_link_libraries(${PROJECT_NAME}
     PUBLIC
     opencv_core opencv_imgproc
     basalt::basalt-headers
+    ${PUBLIC_LINK_LIBS}
 )
 target_include_directories(${PROJECT_NAME} PRIVATE build)
+target_compile_definitions(${PROJECT_NAME} PRIVATE ${COMPILE_DEFINITIONS})
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED YES
