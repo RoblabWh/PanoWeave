@@ -292,11 +292,11 @@ namespace PanoWeave
 
             cv::UMat pano_l = cv::UMat::zeros(this->res, CvMatT(this->channels));
 
+            cv::UMat undist, remapped;
             for (uint8_t i = 0; i < images.size(); ++i)
             {
                 cv::Mat img = images[i];
 
-                cv::UMat undist;
                 if (this->response.empty())
                     img.convertTo(undist, CvMatT(this->channels));
                 else
@@ -304,7 +304,6 @@ namespace PanoWeave
                 cv::multiply(undist, this->vigns[i], undist);
                 cv::multiply(undist, target_exposure / exposure[i], undist);
 
-                cv::UMat remapped;
                 cv::remap(undist, remapped, this->maps_dev[i], cv::noArray(), cv::INTER_NEAREST);
 
                 cv::add(remapped, pano_l, pano_l);
