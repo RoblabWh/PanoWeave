@@ -115,6 +115,7 @@ namespace PanoWeave
         std::vector<cv::cuda::GpuMat*> vigns_cudev;
         std::vector<cv::cuda::GpuMat*> response_cudev;
         cv::cuda::GpuMat *mask_cudev = nullptr;
+        cv::cuda::Stream *stream_cudev = nullptr;
     };
 
 }

@@ -31,6 +31,8 @@ __global__ void correct_response(const cv::cuda::PtrStepb src,
 
 extern "C" void cuda_correctResponse(cv::InputArray _src, cv::InputArray _inv_resp, cv::OutputArray _dst, cv::cuda::Stream &_stream)
 {
+    _dst.create(_src.size(), CV_32FC(_src.channels()));
+
     cv::cuda::GpuMat src = _src.getGpuMat();
     cv::cuda::GpuMat inv_resp = _inv_resp.getGpuMat();
     cv::cuda::GpuMat dst = _dst.getGpuMat();

@@ -25,6 +25,9 @@ namespace PanoWeave
     {
         spdlog::trace("Stitcher::Stitcher()");
         spdlog::cfg::load_env_levels();
+#ifdef WITH_CUDA
+        this->stream_cudev = new cv::cuda::Stream();
+#endif
     }
 
     Stitcher::Stitcher(const std::string &filepath) : Stitcher()
@@ -261,10 +264,6 @@ namespace PanoWeave
         const int cn = _src.channels();
         _dst.create(_src.size(), CvMatT(cn));
 
-#ifdef WITH_CUDA
-        cuda_correctResponse(_src, _inv_resp, _dst);
-#else
-
         if (cv::ocl::haveOpenCL() && ocl_correctResponse(_src, _inv_resp, _dst))
             return;
 
@@ -293,7 +292,6 @@ namespace PanoWeave
             spdlog::error("Can not correct response for {} channel images", cn);
             CV_Assert(false);
         }
-#endif
     }
 
     void Stitcher::stitch(const std::vector<cv::Mat> &images, cv::Mat &pano)
@@ -342,25 +340,25 @@ namespace PanoWeave
 #else
             cv::cuda::GpuMat pano_l(this->res, CvMatT(this->channels), cv::Scalar::all(0));
 
+            cv::cuda::GpuMat img, undist, remapped;
             for (uint8_t i = 0; i < images.size(); ++i)
             {
-                cv::cuda::GpuMat img, undist;
-                img.upload(images[i]);
+                img.upload(images[i], *(this->stream_cudev));
                 if (this->response.empty())
-                    img.convertTo(undist, CvMatT(this->channels));
+                    img.convertTo(undist, CvMatT(this->channels), *(this->stream_cudev));
                 else
-                    correctResponse(img, *(this->response_cudev[i]), undist);
-                cv::cuda::multiply(undist, *(this->vigns_cudev[i]), undist);
-                cv::cuda::multiply(undist, cv::Scalar::all(target_exposure / exposure[i]), undist);
+                    cuda_correctResponse(img, *(this->response_cudev[i]), undist, *(this->stream_cudev));
+                cv::cuda::multiply(undist, *(this->vigns_cudev[i]), undist, 1.0, -1, *(this->stream_cudev));
+                cv::cuda::multiply(undist, cv::Scalar::all(target_exposure / exposure[i]), undist, 1.0, -1, *(this->stream_cudev));
 
-                cv::cuda::GpuMat remapped;
-                cv::cuda::remap(undist, remapped, *(this->mapx_cudev[i]), *(this->mapy_cudev[i]), cv::INTER_NEAREST);
+                cv::cuda::remap(undist, remapped, *(this->mapx_cudev[i]), *(this->mapy_cudev[i]), cv::INTER_NEAREST, 0, cv::Scalar(), *(this->stream_cudev));
 
-                cv::cuda::add(remapped, pano_l, pano_l);
+                cv::cuda::add(remapped, pano_l, pano_l, cv::noArray(), -1, *(this->stream_cudev));
             }
-            cv::cuda::divide(pano_l, *(this->mask_cudev), pano_l);
-            pano_l.convertTo(pano_l, CV_8UC(this->channels));
-            pano_l.download(pano);
+            cv::cuda::divide(pano_l, *(this->mask_cudev), pano_l, 1.0, -1, *(this->stream_cudev));
+            pano_l.convertTo(pano_l, CV_8UC(this->channels), *(this->stream_cudev));
+            pano_l.download(pano, *(this->stream_cudev));
+            this->stream_cudev->waitForCompletion();
 #endif
         }
         else
