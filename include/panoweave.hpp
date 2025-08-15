@@ -46,7 +46,7 @@ namespace PanoWeave
         Stitcher(const std::string &calibration_filepath);
         Stitcher(const std::string &calibration_filepath, ScalarT depth);
         Stitcher(const std::string &calibration_filepath, const cv::Mat &depth);
-        ~Stitcher() = default;
+        ~Stitcher();
 
         void loadCalibration(const std::string &calibration_filepath);
         void setDepth(ScalarT depth);

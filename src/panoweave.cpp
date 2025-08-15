@@ -52,6 +52,25 @@ namespace PanoWeave
         this->buildInternals();
     }
 
+    Stitcher::~Stitcher()
+    {
+        spdlog::trace("Stitcher::~Stitcher()");
+#ifdef WITH_CUDA
+        for (auto &mapx_cudev : this->mapx_cudev)
+            delete mapx_cudev;
+        for (auto &mapy_cudev : this->mapy_cudev)
+            delete mapy_cudev;
+        for (auto &vigns_cudev : this->vigns_cudev)
+            delete vigns_cudev;
+        for (auto &response_cudev : this->response_cudev)
+            delete response_cudev;
+        if (this->mask_cudev)
+            delete this->mask_cudev;
+        if (this->stream_cudev)
+            delete this->stream_cudev;
+#endif
+    }
+
     void Stitcher::loadCalibration(const std::string &filepath)
     {
         spdlog::trace("Stitcher::loadCalibration(const std::string &)");
