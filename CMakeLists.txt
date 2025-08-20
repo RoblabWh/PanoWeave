@@ -23,6 +23,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 endif(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 
 add_subdirectory(thirdparty/basalt-headers)
+add_subdirectory(thirdparty/argparse)
 
 list(APPEND src_list src/panoweave.cpp)
 file(GLOB_RECURSE hdr_list LIST_DIRECTORY false include/*.hpp)
