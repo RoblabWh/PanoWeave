@@ -357,9 +357,10 @@ namespace PanoWeave
             cv::divide(pano_l, this->mask, pano_l);
             pano_l.convertTo(pano, CV_8UC(this->channels));
 #else
-            cv::cuda::GpuMat pano_l(this->res, CvMatT(this->channels), cv::Scalar::all(0));
+            static cv::cuda::GpuMat img, undist, remapped, pano_l;
 
-            cv::cuda::GpuMat img, undist, remapped;
+            pano_l.create(this->res, CvMatT(this->channels));
+            pano_l.setTo(cv::Scalar::all(0), *(this->stream_cudev));
             for (uint8_t i = 0; i < images.size(); ++i)
             {
                 img.upload(images[i], *(this->stream_cudev));
