@@ -37,7 +37,7 @@ int main(int argc, char **argv)
     std::string calib_path = argp.get<std::string>("calibration");
     std::vector<std::string> input_paths = argp.get<std::vector<std::string>>("inputs");
 
-    auto stitcher = std::make_unique<PanoWeave::Stitcher>(calib_path);
+    auto stitcher = std::make_unique<panoweave::Stitcher>(calib_path);
     stitcher->resolution(3200, 1600);
     stitcher->setDepth(1);
 
@@ -63,29 +63,29 @@ int main(int argc, char **argv)
     }
     cv::namedWindow("Output", cv::WINDOW_NORMAL);
     cv::createTrackbar("Resolution X (px)", "Output", nullptr, 4000, [](int pos, void *stitcher) -> void
-                       { static_cast<PanoWeave::Stitcher *>(stitcher)->width(pos > 0 ? pos : 1); }, stitcher.get());
+                       { static_cast<panoweave::Stitcher *>(stitcher)->width(pos > 0 ? pos : 1); }, stitcher.get());
     cv::createTrackbar("Resolution Y (px)", "Output", nullptr, 2000, [](int pos, void *stitcher) -> void
-                       { static_cast<PanoWeave::Stitcher *>(stitcher)->height(pos > 0 ? pos : 1); }, stitcher.get());
+                       { static_cast<panoweave::Stitcher *>(stitcher)->height(pos > 0 ? pos : 1); }, stitcher.get());
     cv::createTrackbar("FOV X (deg)", "Output", nullptr, 360, [](int pos, void *stitcher) -> void
-                       { static_cast<PanoWeave::Stitcher *>(stitcher)->fovX(pos * M_PI / 180); }, stitcher.get());
+                       { static_cast<panoweave::Stitcher *>(stitcher)->fovX(pos * M_PI / 180); }, stitcher.get());
     cv::createTrackbar("FOV Y (deg)", "Output", nullptr, 180, [](int pos, void *stitcher) -> void
-                       { static_cast<PanoWeave::Stitcher *>(stitcher)->fovY(pos * M_PI / 180); }, stitcher.get());
+                       { static_cast<panoweave::Stitcher *>(stitcher)->fovY(pos * M_PI / 180); }, stitcher.get());
     cv::createTrackbar("Depth (cm)", "Output", nullptr, 1000, [](int pos, void *stitcher) -> void
-                       { static_cast<PanoWeave::Stitcher *>(stitcher)->setDepth(pos > 0 ? pos / 100. : 0.1); }, stitcher.get());
+                       { static_cast<panoweave::Stitcher *>(stitcher)->setDepth(pos > 0 ? pos / 100. : 0.1); }, stitcher.get());
     cv::createTrackbar("Vignette Threshold (%)", "Output", nullptr, 100, [](int pos, void *stitcher) -> void
-                       { static_cast<PanoWeave::Stitcher *>(stitcher)->vignetteThreshold(pos / 100.); }, stitcher.get());
+                       { static_cast<panoweave::Stitcher *>(stitcher)->vignetteThreshold(pos / 100.); }, stitcher.get());
     cv::createTrackbar("Rotation X (deg)", "Output", nullptr, 360, [](int pos, void *stitcher) -> void
-                       { auto rvec = static_cast<PanoWeave::Stitcher *>(stitcher)->transform().rvec();
+                       { auto rvec = static_cast<panoweave::Stitcher *>(stitcher)->transform().rvec();
                          rvec[0] = pos / 180. * M_PI;
-                         static_cast<PanoWeave::Stitcher *>(stitcher)->transform(rvec); }, stitcher.get());
+                         static_cast<panoweave::Stitcher *>(stitcher)->transform(rvec); }, stitcher.get());
     cv::createTrackbar("Rotation Y (deg)", "Output", nullptr, 360, [](int pos, void *stitcher) -> void
-                       { auto rvec = static_cast<PanoWeave::Stitcher *>(stitcher)->transform().rvec();
+                       { auto rvec = static_cast<panoweave::Stitcher *>(stitcher)->transform().rvec();
                          rvec[1] = pos / 180. * M_PI;
-                         static_cast<PanoWeave::Stitcher *>(stitcher)->transform(rvec); }, stitcher.get());
+                         static_cast<panoweave::Stitcher *>(stitcher)->transform(rvec); }, stitcher.get());
     cv::createTrackbar("Rotation Z (deg)", "Output", nullptr, 360, [](int pos, void *stitcher) -> void
-                       { auto rvec = static_cast<PanoWeave::Stitcher *>(stitcher)->transform().rvec();
+                       { auto rvec = static_cast<panoweave::Stitcher *>(stitcher)->transform().rvec();
                          rvec[2] = pos / 180. * M_PI;
-                         static_cast<PanoWeave::Stitcher *>(stitcher)->transform(rvec); }, stitcher.get());
+                         static_cast<panoweave::Stitcher *>(stitcher)->transform(rvec); }, stitcher.get());
 
     while (readInputs(caps, imgs))
     {

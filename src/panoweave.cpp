@@ -11,8 +11,37 @@
 #include "basalt/serialization/headers_serialization.h"
 #include "basalt/camera/generic_camera.hpp"
 
-namespace PanoWeave
+namespace panoweave
 {
+    using CvPoint2T = cv::Point_<ScalarT>;
+    using CvPoint3T = cv::Point3_<ScalarT>;
+    using EigenPoint2T = Eigen::Matrix<ScalarT, 2, 1>;
+    using EigenPoint3T = Eigen::Matrix<ScalarT, 3, 1>;
+    using EigenAlVec2T = Eigen::aligned_vector<EigenPoint2T>;
+    using EigenAlVec3T = Eigen::aligned_vector<EigenPoint3T>;
+
+    template<size_t T>
+    class EigenAlignedCvMat
+    {
+    public:
+        using EigenT = Eigen::aligned_vector<Eigen::Matrix<ScalarT, T, 1>>;
+
+        EigenAlignedCvMat(const cv::Size &res)
+            : eigen_mat(res.area()), cv_mat(res, CvMatT(T), this->eigen_mat.data()) {}
+
+        operator Eigen::aligned_vector<Eigen::Matrix<ScalarT, T, 1>> &()
+        {
+            return this->eigen_mat;
+        }
+        operator cv::Mat &()
+        {
+            return this->cv_mat;
+        }
+
+    private:
+        EigenT eigen_mat;
+        cv::Mat cv_mat;
+    };
 
     Stitcher::Stitcher()
     {
@@ -274,6 +303,7 @@ namespace PanoWeave
         spdlog::trace("Stitcher::stitch(const std::vector<cv::Mat> &, cv::Mat &)");
         this->stitch(images, std::vector<ScalarT>(images.size(), 1.0), pano);
     }
+
     void Stitcher::stitch(const std::vector<cv::Mat> &images, const std::vector<ScalarT> &exposure, cv::Mat &pano)
     {
         spdlog::trace("Stitcher::stitch(const std::vector<cv::Mat> &, const std::vector<ScalarT> &, cv::Mat &)");
@@ -290,7 +320,7 @@ namespace PanoWeave
             std::sort(exp_sort.begin(), exp_sort.end());
             ScalarT target_exposure = exp_sort[exp_sort.size() / 2];
 
-            cv::UMat pano_l = cv::UMat::zeros(this->res, CvMatT(this->channels));
+            cv::UMat stitched = cv::UMat::zeros(this->res, CvMatT(this->channels));
 
             cv::UMat undist, remapped;
             for (uint8_t i = 0; i < images.size(); ++i)
@@ -304,12 +334,12 @@ namespace PanoWeave
                 cv::multiply(undist, this->vigns[i], undist);
                 cv::multiply(undist, target_exposure / exposure[i], undist);
 
-                cv::remap(undist, remapped, this->maps_dev[i], cv::noArray(), cv::INTER_NEAREST);
+                cv::remap(undist, remapped, this->maps[i], cv::noArray(), cv::INTER_NEAREST);
 
-                cv::add(remapped, pano_l, pano_l);
+                cv::add(remapped, stitched, stitched);
             }
-            cv::divide(pano_l, this->mask, pano_l);
-            pano_l.convertTo(pano, CV_8UC(this->channels));
+            cv::divide(stitched, this->mask, stitched);
+            stitched.convertTo(pano, CV_8UC(this->channels));
         }
         else
         {
@@ -462,13 +492,14 @@ namespace PanoWeave
         createSphericalPoints3(this->res, this->fov_, rays);
         transformSphericalPoints3(rays, this->tf, rays);
 
+        std::vector<EigenAlignedCvMat<2>> maps;
         if (this->depth_static > 0.0)
         {
-            buildMapsVariable(rays, this->calib, this->depth_static, this->maps);
+            buildMapsVariable(rays, this->calib, this->depth_static, maps);
         }
         else if (!this->depth_dynamic.empty() && this->depth_dynamic.type() == CvMatT(1))
         {
-            buildMapsVariable(rays, this->calib, this->depth_dynamic, this->maps);
+            buildMapsVariable(rays, this->calib, this->depth_dynamic, maps);
         }
         else
         {
@@ -476,9 +507,9 @@ namespace PanoWeave
             return false;
         }
 
-        this->maps_dev.resize(this->maps.size());
-        for (uint8_t i = 0; i < this->maps.size(); ++i)
-            static_cast<cv::Mat>(this->maps[i]).copyTo(this->maps_dev[i]);
+        this->maps.resize(maps.size());
+        for (uint8_t i = 0; i < maps.size(); ++i)
+            static_cast<cv::Mat>(maps[i]).copyTo(this->maps[i]);
 
         this->build_mask = true;
         this->build_maps = false;
@@ -519,7 +550,7 @@ namespace PanoWeave
             cv::UMat mask_part, mask_bin;
             cv::compare(this->vigns_base[cam_idx], 0, mask_bin, cv::CMP_GT);
             cv::divide(mask_bin, 255, mask_bin);
-            cv::remap(mask_bin, mask_part, this->maps_dev[cam_idx], cv::noArray(), cv::INTER_NEAREST);
+            cv::remap(mask_bin, mask_part, this->maps[cam_idx], cv::noArray(), cv::INTER_NEAREST);
             cv::add(this->mask_base, mask_part, this->mask_base, cv::noArray(), CvMatT(1));
             if (this->use_mask_as_vign)
                 mask_bin.convertTo(this->vigns_base[cam_idx], CvMatT(1));

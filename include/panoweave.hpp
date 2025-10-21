@@ -3,41 +3,12 @@
 #include <opencv2/core/affine.hpp>
 #include "basalt/calibration/calibration.hpp"
 
-namespace PanoWeave
+namespace panoweave
 {
-    using ScalarT = float;
     #define CvMatT CV_32FC
+    using ScalarT = float;
     using CvFovT = cv::Size_<ScalarT>;
-    using CvPoint2T = cv::Point_<ScalarT>;
-    using CvPoint3T = cv::Point3_<ScalarT>;
     using CvAffine3T = cv::Affine3<ScalarT>;
-    using EigenPoint2T = Eigen::Matrix<ScalarT, 2, 1>;
-    using EigenPoint3T = Eigen::Matrix<ScalarT, 3, 1>;
-    using EigenAlVec2T = Eigen::aligned_vector<EigenPoint2T>;
-    using EigenAlVec3T = Eigen::aligned_vector<EigenPoint3T>;
-
-    template<size_t T>
-    class EigenAlignedCvMat
-    {
-    public:
-        using EigenT = Eigen::aligned_vector<Eigen::Matrix<ScalarT, T, 1>>;
-
-        EigenAlignedCvMat(const cv::Size &res)
-            : eigen_mat(res.area()), cv_mat(res, CvMatT(T), this->eigen_mat.data()) {}
-
-        operator Eigen::aligned_vector<Eigen::Matrix<ScalarT, T, 1>> &()
-        {
-            return this->eigen_mat;
-        }
-        operator cv::Mat &()
-        {
-            return this->cv_mat;
-        }
-
-    private:
-        EigenT eigen_mat;
-        cv::Mat cv_mat;
-    };
 
     class Stitcher
     {
@@ -98,8 +69,7 @@ namespace PanoWeave
         bool use_mask_as_vign = false;
         int channels = 0;
         cv::Size res;
-        std::vector<EigenAlignedCvMat<2>> maps;
-        std::vector<cv::UMat> maps_dev;
+        std::vector<cv::UMat> maps;
         ScalarT vign_thresh = 0.5;
         cv::UMat depth_dynamic;
         ScalarT depth_static = 0.0;

@@ -80,7 +80,7 @@ int main(int argc, char **argv)
                   << std::endl;
     }
 
-    auto stitcher = std::make_unique<PanoWeave::Stitcher>(calib_path);
+    auto stitcher = std::make_unique<panoweave::Stitcher>(calib_path);
     stitcher->resolution(width, height);
     stitcher->setDepth(1);
 

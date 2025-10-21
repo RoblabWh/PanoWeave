@@ -3,11 +3,12 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
-namespace PanoWeave
+namespace panoweave
 {
     template <typename T>
     using ndarray = pybind11::array_t<T, pybind11::array::c_style | pybind11::array::forcecast>;
-    using PyCvMat = ndarray<uint8_t>;
+    using PyImage = ndarray<uint8_t>;
+    using PyDepth = ndarray<ScalarT>;
 
     class PyStitcher : public Stitcher
     {
@@ -17,10 +18,10 @@ namespace PanoWeave
             : Stitcher(calibration_filepath) {}
         PyStitcher(const std::string &calibration_filepath, ScalarT depth)
             : Stitcher(calibration_filepath, depth) {}
-        PyStitcher(const std::string &calibration_filepath, PyCvMat depth)
+        PyStitcher(const std::string &calibration_filepath, PyDepth depth)
             : Stitcher(calibration_filepath, cv::Mat(depth.shape(0), depth.shape(1), CvMatT(1), depth.mutable_data())) {}
 
-        void setDepth(PyCvMat depth)
+        void setDepth(PyDepth depth)
         {
             Stitcher::setDepth(cv::Mat(depth.shape(0), depth.shape(1), CvMatT(1), depth.mutable_data()));
         }
@@ -101,11 +102,11 @@ namespace PanoWeave
             return this->transform();
         }
 
-        PyCvMat stitch(std::vector<PyCvMat> &images)
+        PyImage stitch(std::vector<PyImage> &images)
         {
             return this->stitch(images, std::vector<ScalarT>(images.size(), 1.0));
         }
-        PyCvMat stitch(std::vector<PyCvMat> &images, const std::vector<ScalarT> &exposure)
+        PyImage stitch(std::vector<PyImage> &images, const std::vector<ScalarT> &exposure)
         {
             std::vector<cv::Mat> cv_images;
             cv_images.reserve(images.size());
@@ -114,18 +115,18 @@ namespace PanoWeave
                 cv_images.emplace_back(img.shape(0), img.shape(1), CV_8UC(img.shape(2)), img.mutable_data());
             }
 
-            auto pano = PyCvMat({static_cast<size_t>(Stitcher::height()), static_cast<size_t>(Stitcher::width()), static_cast<size_t>(images[0].shape(2))});
+            auto pano = PyImage({static_cast<size_t>(Stitcher::height()), static_cast<size_t>(Stitcher::width()), static_cast<size_t>(images[0].shape(2))});
             auto cv_pano = cv::Mat(pano.shape(0), pano.shape(1), CV_8UC(pano.shape(2)), pano.mutable_data());
 
             Stitcher::stitch(cv_images, exposure, cv_pano);
             return pano;
         }
-        PyCvMat stitch(std::vector<PyCvMat> &images, const std::vector<ScalarT> &exposure, ScalarT depth)
+        PyImage stitch(std::vector<PyImage> &images, const std::vector<ScalarT> &exposure, ScalarT depth)
         {
             Stitcher::setDepth(depth);
             return this->stitch(images, exposure);
         }
-        PyCvMat stitch(std::vector<PyCvMat> &images, const std::vector<ScalarT> &exposure, PyCvMat depth)
+        PyImage stitch(std::vector<PyImage> &images, const std::vector<ScalarT> &exposure, PyDepth depth)
         {
             this->setDepth(depth);
             return this->stitch(images, exposure);
@@ -140,11 +141,11 @@ namespace PanoWeave
             .def(pybind11::init<>())
             .def(pybind11::init<const std::string &>(), pybind11::arg("calibration_filepath"))
             .def(pybind11::init<const std::string &, ScalarT>(), pybind11::arg("calibration_filepath"), pybind11::arg("depth"))
-            .def(pybind11::init<const std::string &, PyCvMat>(), pybind11::arg("calibration_filepath"), pybind11::arg("depth"))
+            .def(pybind11::init<const std::string &, PyDepth>(), pybind11::arg("calibration_filepath"), pybind11::arg("depth"))
 
             .def("loadCalibration", static_cast<void (Stitcher::*)(const std::string &)>(&Stitcher::loadCalibration))
             .def("setDepth", static_cast<void (Stitcher::*)(ScalarT)>(&Stitcher::setDepth))
-            .def("setDepth", static_cast<void (PyStitcher::*)(PyCvMat)>(&PyStitcher::setDepth))
+            .def("setDepth", static_cast<void (PyStitcher::*)(PyDepth)>(&PyStitcher::setDepth))
 
             .def("resolution", static_cast<std::tuple<int, int> (PyStitcher::*)() const>(&PyStitcher::resolution))
             .def("resolution", static_cast<std::tuple<int, int> (PyStitcher::*)(const std::tuple<int, int> &)>(&PyStitcher::resolution))
@@ -174,10 +175,10 @@ namespace PanoWeave
             .def("transform", static_cast<ndarray<ScalarT> (PyStitcher::*)(const std::tuple<ScalarT, ScalarT, ScalarT> &, const std::optional<std::tuple<ScalarT, ScalarT, ScalarT>> &)>(&PyStitcher::transform),
                  pybind11::arg("rotation"), pybind11::arg("translation") = pybind11::none())
 
-            .def("stitch", static_cast<PyCvMat (PyStitcher::*)(std::vector<PyCvMat> &)>(&PyStitcher::stitch))
-            .def("stitch", static_cast<PyCvMat (PyStitcher::*)(std::vector<PyCvMat> &, const std::vector<ScalarT> &)>(&PyStitcher::stitch))
-            .def("stitch", static_cast<PyCvMat (PyStitcher::*)(std::vector<PyCvMat> &, const std::vector<ScalarT> &, ScalarT)>(&PyStitcher::stitch))
-            .def("stitch", static_cast<PyCvMat (PyStitcher::*)(std::vector<PyCvMat> &, const std::vector<ScalarT> &, PyCvMat)>(&PyStitcher::stitch));
+            .def("stitch", static_cast<PyImage (PyStitcher::*)(std::vector<PyImage> &)>(&PyStitcher::stitch))
+            .def("stitch", static_cast<PyImage (PyStitcher::*)(std::vector<PyImage> &, const std::vector<ScalarT> &)>(&PyStitcher::stitch))
+            .def("stitch", static_cast<PyImage (PyStitcher::*)(std::vector<PyImage> &, const std::vector<ScalarT> &, ScalarT)>(&PyStitcher::stitch))
+            .def("stitch", static_cast<PyImage (PyStitcher::*)(std::vector<PyImage> &, const std::vector<ScalarT> &, PyDepth)>(&PyStitcher::stitch));
     }
 
 }
