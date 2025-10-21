@@ -3,14 +3,14 @@ project(PanoWeave LANGUAGES CXX)
 
 find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc)
 find_package(spdlog REQUIRED)
-find_package(pybind11 REQUIRED)
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
-    message(${CMAKE_CXX_FLAGS_RELEASE})
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Og")
-    message(${CMAKE_CXX_FLAGS_DEBUG})
+    set(BUILD_AUX ON)
+else()
+    set(BUILD_AUX OFF)
 endif(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 
 add_subdirectory(thirdparty/basalt-headers)
@@ -41,17 +41,22 @@ target_link_libraries(${PROJECT_NAME}
     opencv_core opencv_imgproc
     basalt::basalt-headers
 )
-target_include_directories(${PROJECT_NAME} PRIVATE build)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED YES
 )
 
-string(TOLOWER ${PROJECT_NAME} PYBIND_PROJECT_NAME)
-pybind11_add_module(${PYBIND_PROJECT_NAME} src/panoweave_pybind.cpp)
-target_link_libraries(${PYBIND_PROJECT_NAME} PUBLIC ${PROJECT_NAME})
+option(PYBINDS "Build Python Bindings with pybind11" ${BUILD_AUX})
+if(${PYBINDS})
+    find_package(pybind11 REQUIRED)
 
-option(BUILD_EXAMPLES "Build example applications for PanoWeave" ON)
-if(${BUILD_EXAMPLES})
+    string(TOLOWER ${PROJECT_NAME} PYBIND_PROJECT_NAME)
+    pybind11_add_module(${PYBIND_PROJECT_NAME} src/panoweave_pybind.cpp)
+    target_link_libraries(${PYBIND_PROJECT_NAME} PUBLIC ${PROJECT_NAME})
+endif(${PYBINDS})
+
+option(EXAMPLES "Build example applications for PanoWeave" ${BUILD_AUX})
+if(${EXAMPLES})
     add_subdirectory(example)
-endif(${BUILD_EXAMPLES})
+endif(${EXAMPLES})
