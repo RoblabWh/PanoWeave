@@ -382,21 +382,18 @@ namespace panoweave
         spdlog::trace("createSphericalPoints3(const cv::Size &, ScalarT, ScalarT, cv::Mat &)");
         CV_Assert(rays.type() == CvMatT(3) && rays.size() == res);
 
-        const ScalarT width_2 = res.width / 2.0;
-        const ScalarT height_2 = res.height / 2.0;
-
         rays.forEach<CvPoint3T>([&](CvPoint3T &point, const int *pos) -> void
                                 {
-                                    const int u = pos[1];
-                                    const int v = pos[0];
+                                    const ScalarT u = pos[1];
+                                    const ScalarT v = pos[0];
 
-                                    const ScalarT x = (u - width_2) / res.width * fov.width + M_PI_2;
-                                    const ScalarT y = (v - height_2) / res.height * fov.height;
+                                    const ScalarT x = u / res.width * fov.width - M_PI_2;
+                                    const ScalarT y = v / res.height * fov.height;
 
                                     // Calculate X, Y, and Z components of spherical rays
-                                    point.x = std::cos(y) * std::sin(x);  // x
-                                    point.y = -std::cos(y) * std::cos(x); // y
-                                    point.z = std::sin(y);                // z
+                                    point.x = std::sin(y) * std::sin(x);
+                                    point.y = std::sin(y) * std::cos(x);
+                                    point.z = std::cos(y);
                                 });
     }
 
