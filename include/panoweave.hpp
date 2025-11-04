@@ -20,6 +20,7 @@ namespace panoweave
         ~Stitcher() = default;
 
         void loadCalibration(const std::string &calibration_filepath);
+        const basalt::Calibration<ScalarT> &calibration();
         void setDepth(ScalarT depth);
         void setDepth(const cv::Mat &depth);
 
@@ -71,7 +72,7 @@ namespace panoweave
         cv::Size res;
         std::vector<cv::UMat> maps;
         ScalarT vign_thresh = 0.5;
-        cv::UMat depth_dynamic;
+        cv::Mat depth_dynamic;
         ScalarT depth_static = 0.0;
         CvFovT fov_ = {M_PI * 2.0, M_PI};
         CvAffine3T tf;

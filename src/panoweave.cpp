@@ -76,9 +76,7 @@ namespace panoweave
         spdlog::trace("Stitcher::loadCalibration(const std::string &)");
         std::ifstream file(filepath);
         cereal::JSONInputArchive archive(file);
-        basalt::Calibration<double> calib;
-        archive(calib);
-        this->calib = calib.cast<ScalarT>();
+        archive(this->calib);
 
         this->response.resize(this->calib.response.size());
         for (uint8_t i = 0; i < this->calib.response.size(); ++i)
@@ -86,6 +84,12 @@ namespace panoweave
 
         this->build_maps = true;
         this->build_vigns = true;
+    }
+
+    const basalt::Calibration<ScalarT> &Stitcher::calibration()
+    {
+        spdlog::trace("Stitcher::calibration()");
+        return this->calib;
     }
 
     void Stitcher::setDepth(ScalarT depth)
