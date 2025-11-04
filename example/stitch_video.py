@@ -17,14 +17,14 @@ def readInputs(caps):
     return ret, imgs
 
 def modifyRotation(tf, x = None, y = None, z = None):
-    rvec = R.from_matrix(tf[:3, :3]).as_rotvec()
+    rpy = R.from_matrix(tf[:3, :3]).as_euler("XYZ", degrees=True)
     if x is not None:
-        rvec[0] = x
+        rpy[0] = x
     if y is not None:
-        rvec[1] = y
+        rpy[1] = y
     if z is not None:
-        rvec[2] = z
-    return rvec
+        rpy[2] = z
+    return R.from_euler("XYZ", rpy, degrees=True).as_rotvec()
 
 def main():
     parser = ArgumentParser(prog="Video Stitcher Example")
@@ -59,9 +59,9 @@ def main():
     cv.createTrackbar("FOV Y (deg)", "Output", 0, 180, lambda x: stitcher.fovY(x / 180 * pi))
     cv.createTrackbar("Depth (cm)", "Output", 0, 1000, lambda x: stitcher.setDepth(x / 100 if x > 0 else 1 / 1000))
     cv.createTrackbar("Vignette Threshold (%)", "Output", 0, 100, lambda x: stitcher.vignetteThreshold(x / 100))
-    cv.createTrackbar("Rotation X (deg)", "Output", 0, 360, lambda x: stitcher.transform(modifyRotation(stitcher.transform(), x = x / 180 * pi)))
-    cv.createTrackbar("Rotation Y (deg)", "Output", 0, 360, lambda x: stitcher.transform(modifyRotation(stitcher.transform(), y = x / 180 * pi)))
-    cv.createTrackbar("Rotation Z (deg)", "Output", 0, 360, lambda x: stitcher.transform(modifyRotation(stitcher.transform(), z = x / 180 * pi)))
+    cv.createTrackbar("Rotation X (deg)", "Output", 0, 360, lambda x: stitcher.transform(modifyRotation(stitcher.transform(), x = x)))
+    cv.createTrackbar("Rotation Y (deg)", "Output", 0, 360, lambda x: stitcher.transform(modifyRotation(stitcher.transform(), y = x)))
+    cv.createTrackbar("Rotation Z (deg)", "Output", 0, 360, lambda x: stitcher.transform(modifyRotation(stitcher.transform(), z = x)))
 
     ret, imgs = readInputs(caps)
     while ret:
