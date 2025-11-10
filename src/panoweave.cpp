@@ -18,35 +18,7 @@
 
 namespace panoweave
 {
-    using CvPoint2T = cv::Point_<ScalarT>;
     using CvPoint3T = cv::Point3_<ScalarT>;
-    using EigenPoint2T = Eigen::Matrix<ScalarT, 2, 1>;
-    using EigenPoint3T = Eigen::Matrix<ScalarT, 3, 1>;
-    using EigenAlVec2T = Eigen::aligned_vector<EigenPoint2T>;
-    using EigenAlVec3T = Eigen::aligned_vector<EigenPoint3T>;
-
-    template<size_t T>
-    class EigenAlignedCvMat
-    {
-    public:
-        using EigenT = Eigen::aligned_vector<Eigen::Matrix<ScalarT, T, 1>>;
-
-        EigenAlignedCvMat(const cv::Size &res)
-            : eigen_mat(res.area()), cv_mat(res, CvMatT(T), this->eigen_mat.data()) {}
-
-        operator Eigen::aligned_vector<Eigen::Matrix<ScalarT, T, 1>> &()
-        {
-            return this->eigen_mat;
-        }
-        operator cv::Mat &()
-        {
-            return this->cv_mat;
-        }
-
-    private:
-        EigenT eigen_mat;
-        cv::Mat cv_mat;
-    };
 
 #ifdef USE_CUDA
     struct DeviceData
@@ -438,12 +410,11 @@ namespace panoweave
         return true;
     }
 
-    void createSphericalPoints3(const cv::Size &res, const CvFovT &fov, cv::Mat &rays)
+    void createSphericalPoints(const cv::Size &res, const CvFovT &fov, cv::Mat &points)
     {
-        spdlog::trace("createSphericalPoints3(const cv::Size &, ScalarT, ScalarT, cv::Mat &)");
-        CV_Assert(rays.type() == CvMatT(3) && rays.size() == res);
-
-        rays.forEach<CvPoint3T>([&](CvPoint3T &point, const int *pos) -> void
+        spdlog::trace("createSphericalPoints(const cv::Size &, ScalarT, ScalarT, cv::Mat &)");
+        points.create(res, CvMatT(3));
+        points.forEach<CvPoint3T>([&](auto &point, const auto &pos) -> void
                                 {
                                     const ScalarT u = pos[1];
                                     const ScalarT v = pos[0];
@@ -458,21 +429,12 @@ namespace panoweave
                                 });
     }
 
-    void transformSphericalPoints3(const cv::Mat &points_in, const CvAffine3T &transform, cv::Mat &points_out)
+    void transformPoints(const cv::Mat &in, const CvAffine3T &transform, cv::Mat &out)
     {
-        spdlog::trace("transformSphericalPoints3(const cv::Mat &, const CvAffine3T &, cv::Mat &)");
-        if (&points_in == &points_out)
-        {
-            points_out.forEach<CvPoint3T>([&](CvPoint3T &point, const int *pos) -> void
-                                          { (void) pos;
-                                             point = transform * point; });
-        }
-        else
-        {
-            CV_Assert(points_out.type() == points_in.type() && points_out.size() == points_in.size());
-            points_out.forEach<CvPoint3T>([&](CvPoint3T &point, const int *pos) -> void
-                                          { point = transform * points_in.at<CvPoint3T>(pos); });
-        }
+        spdlog::trace("transformPoints(const cv::Mat &, const CvAffine3T &, cv::Mat &)");
+        out.create(in.size(), in.type());
+        out.forEach<CvPoint3T>([&](auto &point, const auto &pos) -> void
+                                { point = transform * in.at<CvPoint3T>(pos); });
     }
 
     template <typename T>
@@ -497,38 +459,34 @@ namespace panoweave
         CV_Assert(in.size() == depth.size());
         CV_Assert(in.type() == CvMatT(3));
         CV_Assert(depth.type() == CvMatT(1));
-        if (&in != &out)
-            CV_Assert(in.size() == out.size() && in.type() == out.type());
-        out.forEach<CvPoint3T>([&](CvPoint3T &point, const int *pos) -> void
+        out.create(in.size(), in.type());
+        out.forEach<CvPoint3T>([&](auto &point, const auto &pos) -> void
                                { point = in.at<CvPoint3T>(pos) * depth.at<ScalarT>(pos); });
     }
 
-    template <typename T>
-    void buildMapsVariable(EigenAlignedCvMat<3> &rays, const basalt::Calibration<ScalarT> calibration, const T &depth, std::vector<EigenAlignedCvMat<2>> &maps)
+    void buildMappingTables(const cv::Mat &points, const basalt::Calibration<ScalarT> calibration, std::vector<cv::Mat> &maps)
     {
-        spdlog::trace("buildMapsVariable(EigenAlignedCvMat<3> &, const basalt::Calibration<ScalarT>, const T &, std::vector<EigenAlignedCvMat<2>> &)");
+        spdlog::trace("buildMappingTables(const cv::Mat &, const basalt::Calibration<ScalarT>, std::vector<cv::Mat> &)");
         maps.clear();
         const uint8_t num_cams = calibration.intrinsics.size();
         maps.reserve(num_cams);
 
-        applyDepth(rays, depth, rays);
-
         for (uint8_t cam_idx = 0; cam_idx < num_cams; ++cam_idx)
         {
-            std::vector<bool> success;
-            maps.emplace_back(static_cast<cv::Mat>(rays).size());
-            cv::Mat &map = maps[cam_idx];
-
-            calibration.intrinsics[cam_idx].project(rays, calibration.T_i_c[cam_idx].matrix().inverse(), maps[cam_idx], success);
-
-            // TODO implement the loop for projection myself and dodge this?
-            map.forEach<CvPoint2T>([&](auto &val, auto pos) -> void
-                                   {
-                if (!success[pos[0] * map.cols + pos[1]])
+            maps.emplace_back(points.size(), CvMatT(2));
+            std::visit([&](const auto& intr)
+            {
+                maps[cam_idx].forEach<cv::Vec<ScalarT, 2>>([&](auto &mapping, const auto pos) -> void
                 {
-                    val.x = 0;
-                    val.y = 0;
-                } });
+                    auto p2d = Eigen::Map<Eigen::Vector<ScalarT, 2>>(mapping.val);
+                    auto p3d = Eigen::Map<const Eigen::Vector<ScalarT, 3>>(points.at<cv::Vec<ScalarT, 3>>(pos).val);
+                    if (!intr.project(calibration.T_i_c[cam_idx].inverse() * p3d, p2d))
+                    {
+                        p2d.setZero();
+                    }
+                });
+            },
+            calibration.intrinsics[cam_idx].variant);
         }
     }
 
@@ -542,28 +500,30 @@ namespace panoweave
 
         if (this->res.empty())
         {
-            spdlog::warn("buildMap(): resolution is empty");
+            spdlog::warn("buildMaps(): resolution is empty");
             return false;
         }
 
-        EigenAlignedCvMat<3> rays(this->res);
-        createSphericalPoints3(this->res, this->fov_, rays);
-        transformSphericalPoints3(rays, this->tf, rays);
+        cv::Mat points;
+        createSphericalPoints(this->res, this->fov_, points);
+        transformPoints(points, this->tf, points);
 
-        std::vector<EigenAlignedCvMat<2>> maps;
         if (this->depth_static > 0.0)
         {
-            buildMapsVariable(rays, this->calib, this->depth_static, maps);
+            applyDepth(points, this->depth_static, points);
         }
         else if (!this->depth_dynamic.empty() && this->depth_dynamic.type() == CvMatT(1))
         {
-            buildMapsVariable(rays, this->calib, this->depth_dynamic, maps);
+            applyDepth(points, this->depth_dynamic, points);
         }
         else
         {
-            spdlog::warn("buildMap(): depth is empty");
+            spdlog::warn("buildMaps(): depth is empty");
             return false;
         }
+
+        std::vector<cv::Mat> maps;
+        buildMappingTables(points, this->calib, maps);
 
 #ifdef USE_CUDA
         this->dev->mapx.resize(maps.size());
