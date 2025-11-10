@@ -11,6 +11,11 @@
 #include "basalt/serialization/headers_serialization.h"
 #include "basalt/camera/generic_camera.hpp"
 
+#ifdef USE_CUDA
+#include <opencv2/cudaarithm.hpp>
+#include <opencv2/cudawarping.hpp>
+#endif
+
 namespace panoweave
 {
     using CvPoint2T = cv::Point_<ScalarT>;
@@ -43,10 +48,28 @@ namespace panoweave
         cv::Mat cv_mat;
     };
 
+#ifdef USE_CUDA
+    struct DeviceData
+    {
+            std::vector<cv::cuda::GpuMat> mapx, mapy;
+            std::vector<cv::cuda::GpuMat> vigns;
+            std::vector<cv::cuda::GpuMat> response;
+            cv::cuda::GpuMat mask;
+            cv::cuda::Stream stream;
+    };
+
+    void cuda_correctResponse(cv::InputArray src, cv::InputArray inv_resp, cv::OutputArray dst, cv::cuda::Stream &stream = cv::cuda::Stream::Null());
+#else
+    struct DeviceData {};
+#endif
+
     Stitcher::Stitcher()
     {
         spdlog::trace("Stitcher::Stitcher()");
         spdlog::cfg::load_env_levels();
+#ifdef USE_CUDA
+        this->dev = std::make_unique<DeviceData>();
+#endif
     }
 
     Stitcher::Stitcher(const std::string &filepath) : Stitcher()
@@ -71,6 +94,8 @@ namespace panoweave
         this->buildInternals();
     }
 
+    Stitcher::~Stitcher() = default;
+
     void Stitcher::loadCalibration(const std::string &filepath)
     {
         spdlog::trace("Stitcher::loadCalibration(const std::string &)");
@@ -78,9 +103,17 @@ namespace panoweave
         cereal::JSONInputArchive archive(file);
         archive(this->calib);
 
+#ifdef USE_CUDA
+        this->dev->response.resize(this->calib.response.size());
+#endif
         this->response.resize(this->calib.response.size());
         for (uint8_t i = 0; i < this->calib.response.size(); ++i)
+        {
             cv::Mat({static_cast<int>(this->calib.response[i].size())}, CvMatT(1), this->calib.response[i].data()).copyTo(this->response[i]);
+#ifdef USE_CUDA
+            this->dev->response[i].upload(this->response[i]);
+#endif
+        }
 
         this->build_maps = true;
         this->build_vigns = true;
@@ -324,6 +357,7 @@ namespace panoweave
             std::sort(exp_sort.begin(), exp_sort.end());
             ScalarT target_exposure = exp_sort[exp_sort.size() / 2];
 
+#ifndef USE_CUDA
             cv::UMat stitched = cv::UMat::zeros(this->res, CvMatT(this->channels));
 
             cv::UMat undist, remapped;
@@ -344,6 +378,29 @@ namespace panoweave
             }
             cv::divide(stitched, this->mask, stitched);
             stitched.convertTo(pano, CV_8UC(this->channels));
+#else
+            static cv::cuda::GpuMat img, undist, remapped, stitched;
+
+            stitched.create(this->res, CvMatT(this->channels));
+            stitched.setTo(cv::Scalar::all(0), this->dev->stream);
+            for (uint8_t i = 0; i < images.size(); ++i)
+            {
+                img.upload(images[i], this->dev->stream);
+                if (this->response.empty())
+                    img.convertTo(undist, CvMatT(this->channels), this->dev->stream);
+                else
+                    cuda_correctResponse(img, this->dev->response[i], undist, this->dev->stream);
+                cv::cuda::multiply(undist, this->dev->vigns[i], undist, 1.0, -1, this->dev->stream);
+                cv::cuda::multiply(undist, cv::Scalar::all(target_exposure / exposure[i]), undist, 1.0, -1, this->dev->stream);
+                cv::cuda::remap(undist, remapped, this->dev->mapx[i], this->dev->mapy[i], cv::INTER_NEAREST, 0, cv::Scalar(), this->dev->stream);
+
+                cv::cuda::add(remapped, stitched, stitched, cv::noArray(), -1, this->dev->stream);
+            }
+            cv::cuda::divide(stitched, this->dev->mask, stitched, 1.0, -1, this->dev->stream);
+            stitched.convertTo(stitched, CV_8UC(this->channels), this->dev->stream);
+            stitched.download(pano, this->dev->stream);
+            this->dev->stream.waitForCompletion();
+#endif
         }
         else
         {
@@ -508,9 +565,21 @@ namespace panoweave
             return false;
         }
 
+#ifdef USE_CUDA
+        this->dev->mapx.resize(maps.size());
+        this->dev->mapy.resize(maps.size());
+#endif
         this->maps.resize(maps.size());
         for (uint8_t i = 0; i < maps.size(); ++i)
+        {
             static_cast<cv::Mat>(maps[i]).copyTo(this->maps[i]);
+#ifdef USE_CUDA
+            std::vector<cv::UMat> maps_xy;
+            cv::split(this->maps[i], maps_xy);
+            this->dev->mapx[i].upload(maps_xy[0]);
+            this->dev->mapy[i].upload(maps_xy[1]);
+#endif
+        }
 
         this->build_mask = true;
         this->build_maps = false;
@@ -549,9 +618,18 @@ namespace panoweave
         for (uint8_t cam_idx = 0; cam_idx < this->calib.intrinsics.size(); ++cam_idx)
         {
             cv::UMat mask_part, mask_bin;
+#ifndef USE_CUDA
             cv::compare(this->vigns_base[cam_idx], 0, mask_bin, cv::CMP_GT);
             cv::divide(mask_bin, 255, mask_bin);
             cv::remap(mask_bin, mask_part, this->maps[cam_idx], cv::noArray(), cv::INTER_NEAREST);
+#else
+            cv::cuda::GpuMat mask_part_cudev, mask_bin_cudev;
+            cv::cuda::compare(this->vigns_base[cam_idx], cv::Scalar::all(0), mask_bin_cudev, cv::CMP_GT);
+            cv::cuda::divide(mask_bin_cudev, cv::Scalar::all(255), mask_bin_cudev);
+            cv::cuda::remap(mask_bin_cudev, mask_part_cudev, this->dev->mapx[cam_idx], this->dev->mapy[cam_idx], cv::INTER_NEAREST);
+            mask_part_cudev.download(mask_part);
+            mask_bin_cudev.download(mask_bin);
+#endif
             cv::add(this->mask_base, mask_part, this->mask_base, cv::noArray(), CvMatT(1));
             if (this->use_mask_as_vign)
                 mask_bin.convertTo(this->vigns_base[cam_idx], CvMatT(1));
@@ -576,12 +654,21 @@ namespace panoweave
         if (!this->build_mirrors)
             return;
 
+#ifdef USE_CUDA
+        this->dev->vigns.resize(this->vigns_base.size());
+#endif
         this->vigns.resize(this->vigns_base.size());
         for (uint8_t cam_idx = 0; cam_idx < this->calib.intrinsics.size(); ++cam_idx)
         {
             mirrorChannels(this->vigns_base[cam_idx], this->channels, this->vigns[cam_idx]);
+#ifdef USE_CUDA
+            this->dev->vigns[cam_idx].upload(this->vigns[cam_idx]);
+#endif
         }
         mirrorChannels(this->mask_base, this->channels, this->mask);
+#ifdef USE_CUDA
+        this->dev->mask.upload(this->mask);
+#endif
 
         this->build_mirrors = false;
     }

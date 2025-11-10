@@ -10,6 +10,8 @@ namespace panoweave
     using CvFovT = cv::Size_<ScalarT>;
     using CvAffine3T = cv::Affine3<ScalarT>;
 
+    struct DeviceData;
+
     class Stitcher
     {
     public:
@@ -17,7 +19,7 @@ namespace panoweave
         Stitcher(const std::string &calibration_filepath);
         Stitcher(const std::string &calibration_filepath, ScalarT depth);
         Stitcher(const std::string &calibration_filepath, const cv::Mat &depth);
-        ~Stitcher() = default;
+        ~Stitcher();
 
         void loadCalibration(const std::string &calibration_filepath);
         const basalt::Calibration<ScalarT> &calibration();
@@ -80,6 +82,9 @@ namespace panoweave
         std::vector<cv::UMat> vigns, vigns_base;
         std::vector<cv::UMat> response;
         cv::UMat mask, mask_base;
+
+        // Additional resources
+        std::unique_ptr<DeviceData> dev;
     };
 
 }

@@ -1,3 +1,6 @@
 [submodule "thirdparty/basalt-headers"]
 	path = thirdparty/basalt-headers
 	url = git@github.com:RoblabWh/basalt-headers.git
+[submodule "thirdparty/argparse"]
+	path = thirdparty/argparse
+	url = https://github.com/p-ranav/argparse.git

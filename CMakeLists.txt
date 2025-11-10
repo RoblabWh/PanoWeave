@@ -1,7 +1,16 @@
 cmake_minimum_required(VERSION 3.23)
 project(PanoWeave LANGUAGES CXX)
 
-find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc)
+option(USE_CUDA "Build with CUDA support instead of T-API" OFF)
+if(USE_CUDA)
+    enable_language(CUDA)
+    list(APPEND src_list src/correct_response.cu)
+    list(APPEND OPENCV_MODULES cudaarithm cudawarping)
+    list(APPEND PUBLIC_LINK_LIBS opencv_cudaarithm opencv_cudawarping)
+    list(APPEND COMPILE_DEFINITIONS USE_CUDA)
+endif()
+
+find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc ${OPENCV_MODULES})
 find_package(spdlog REQUIRED)
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
@@ -14,6 +23,7 @@ else()
 endif(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 
 add_subdirectory(thirdparty/basalt-headers)
+add_subdirectory(thirdparty/argparse)
 
 list(APPEND src_list src/panoweave.cpp)
 file(GLOB_RECURSE hdr_list LIST_DIRECTORY false include/*.hpp)
@@ -40,8 +50,10 @@ target_link_libraries(${PROJECT_NAME}
     PUBLIC
     opencv_core opencv_imgproc
     basalt::basalt-headers
+    ${PUBLIC_LINK_LIBS}
 )
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_definitions(${PROJECT_NAME} PRIVATE ${COMPILE_DEFINITIONS})
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED YES
