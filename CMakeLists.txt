@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.23)
 project(PanoWeave LANGUAGES CXX)
 
-option(WITH_CUDA "Build with CUDA support instead of T-API" OFF)
-if(WITH_CUDA)
+option(USE_CUDA "Build with CUDA support instead of T-API" OFF)
+if(USE_CUDA)
     enable_language(CUDA)
     list(APPEND src_list src/correct_response.cu)
     list(APPEND OPENCV_MODULES cudaarithm cudawarping)
     list(APPEND PUBLIC_LINK_LIBS opencv_cudaarithm opencv_cudawarping)
-    list(APPEND COMPILE_DEFINITIONS WITH_CUDA)
+    list(APPEND COMPILE_DEFINITIONS USE_CUDA)
 endif()
 
 find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc ${OPENCV_MODULES})

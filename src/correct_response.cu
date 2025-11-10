@@ -29,27 +29,30 @@ __global__ void correct_response(const cv::cuda::PtrStepb src,
     }
 }
 
-extern "C" void cuda_correctResponse(cv::InputArray _src, cv::InputArray _inv_resp, cv::OutputArray _dst, cv::cuda::Stream &_stream)
+namespace PanoWeave
 {
-    _dst.create(_src.size(), CV_32FC(_src.channels()));
+    void cuda_correctResponse(cv::InputArray _src, cv::InputArray _inv_resp, cv::OutputArray _dst, cv::cuda::Stream &_stream)
+    {
+        _dst.create(_src.size(), CV_32FC(_src.channels()));
 
-    cv::cuda::GpuMat src = _src.getGpuMat();
-    cv::cuda::GpuMat inv_resp = _inv_resp.getGpuMat();
-    cv::cuda::GpuMat dst = _dst.getGpuMat();
+        cv::cuda::GpuMat src = _src.getGpuMat();
+        cv::cuda::GpuMat inv_resp = _inv_resp.getGpuMat();
+        cv::cuda::GpuMat dst = _dst.getGpuMat();
 
-    const dim3 block(16, 16);
-    const dim3 grid(cv::divUp(dst.cols, block.x), cv::divUp(dst.rows, block.y));
+        const dim3 block(16, 16);
+        const dim3 grid(cv::divUp(dst.cols, block.x), cv::divUp(dst.rows, block.y));
 
-    const int cn = src.channels();
-    cudaStream_t stream = cv::cuda::StreamAccessor::getStream(_stream);
-    if (cn == 1)
-        correct_response<1><<<grid, block, 0, stream>>>(src, inv_resp, dst);
-    else if (cn == 3)
-        correct_response<3><<<grid, block, 0, stream>>>(src, inv_resp, dst);
-    else if (cn == 4)
-        correct_response<4><<<grid, block, 0, stream>>>(src, inv_resp, dst);
+        const int cn = src.channels();
+        cudaStream_t stream = cv::cuda::StreamAccessor::getStream(_stream);
+        if (cn == 1)
+            correct_response<1><<<grid, block, 0, stream>>>(src, inv_resp, dst);
+        else if (cn == 3)
+            correct_response<3><<<grid, block, 0, stream>>>(src, inv_resp, dst);
+        else if (cn == 4)
+            correct_response<4><<<grid, block, 0, stream>>>(src, inv_resp, dst);
 
-    cudaSafeCall(cudaGetLastError());
-    if (stream == 0)
-        cudaSafeCall(cudaDeviceSynchronize());
+        cudaSafeCall(cudaGetLastError());
+        if (stream == 0)
+            cudaSafeCall(cudaDeviceSynchronize());
+    }
 }

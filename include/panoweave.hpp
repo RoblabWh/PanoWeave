@@ -16,6 +16,8 @@ namespace PanoWeave
     using EigenAlVec2T = Eigen::aligned_vector<EigenPoint2T>;
     using EigenAlVec3T = Eigen::aligned_vector<EigenPoint3T>;
 
+    struct DeviceData;
+
     template<size_t T>
     class EigenAlignedCvMat
     {
@@ -110,12 +112,8 @@ namespace PanoWeave
         std::vector<cv::UMat> response;
         cv::UMat mask, mask_base;
 
-        // Additional CUDA resources
-        std::vector<cv::cuda::GpuMat*> mapx_cudev, mapy_cudev;
-        std::vector<cv::cuda::GpuMat*> vigns_cudev;
-        std::vector<cv::cuda::GpuMat*> response_cudev;
-        cv::cuda::GpuMat *mask_cudev = nullptr;
-        cv::cuda::Stream *stream_cudev = nullptr;
+        // Additional resources
+        std::unique_ptr<DeviceData> dev;
     };
 
 }
