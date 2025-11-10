@@ -330,9 +330,10 @@ namespace panoweave
             ScalarT target_exposure = exp_sort[exp_sort.size() / 2];
 
 #ifndef USE_CUDA
-            cv::UMat stitched = cv::UMat::zeros(this->res, CvMatT(this->channels));
+            static cv::UMat undist, remapped, stitched;
 
-            cv::UMat undist, remapped;
+            stitched.create(this->res, CvMatT(this->channels));
+            stitched.setTo(cv::Scalar::all(0));
             for (uint8_t i = 0; i < images.size(); ++i)
             {
                 cv::Mat img = images[i];
