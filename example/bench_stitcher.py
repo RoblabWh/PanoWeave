@@ -46,7 +46,7 @@ def main():
     )
     parser.add_argument(
         "--iterations",
-        "--iter",
+        "-i",
         type=int,
         default=1000,
         help="Number of iterations to run",
@@ -55,6 +55,11 @@ def main():
         "--skip-first",
         action="store_true",
         help="Skip the first iteration (removes lazy loading time)",
+    )
+    parser.add_argument(
+        "--simulate-depth",
+        action="store_true",
+        help="Simulate depth data",
     )
     try:
         args = parser.parse_args()
@@ -97,6 +102,9 @@ def main():
         d = end - start
         duration += d
         durations.append(d)
+
+        if args.simulate_depth:
+            stitcher.setDepth((i % 100 + 1) / 10)
 
         cv.imshow("Output", pano)
         if cv.waitKey(1) == 27:

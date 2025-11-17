@@ -36,11 +36,11 @@ int main(int argc, char **argv)
         .help("Path to input videos");
     argp.add_argument("--calibration", "--calib", "-c")
         .help("Path to basalt calibration.json for camera calibration");
-    argp.add_argument("--width", "-w")
+    argp.add_argument("--width")
         .scan<'u', size_t>()
         .default_value<size_t>(3200)
         .help("Output resolution width in pixels");
-    argp.add_argument("--height", "-h")
+    argp.add_argument("--height")
         .scan<'u', size_t>()
         .default_value<size_t>(1600)
         .help("Output resolution height in pixels");
@@ -52,6 +52,10 @@ int main(int argc, char **argv)
         .default_value(false)
         .implicit_value(true)
         .help("Skip the first iteration (removes lazy loading time)");
+    argp.add_argument("--simulate-depth")
+        .default_value(false)
+        .implicit_value(true)
+        .help("Simulate depth data");
     try
     {
         argp.parse_args(argc, argv);
@@ -68,6 +72,7 @@ int main(int argc, char **argv)
     size_t height = argp.get<size_t>("height");
     size_t iter = argp.get<size_t>("iterations");
     bool skip_first = argp.get<bool>("skip-first");
+    bool simulate_depth = argp.get<bool>("simulate-depth");
 
     std::cout << "OpenCL Support: " << std::boolalpha << cv::ocl::haveOpenCL() << std::endl;
     if (cv::ocl::haveOpenCL())
@@ -116,6 +121,9 @@ int main(int argc, char **argv)
         const auto d = end - start;
         duration += d;
         durations.push_back(d);
+
+        if (simulate_depth)
+            stitcher->setDepth((i % 100 + 1) / 10.0);
 
         cv::imshow("Output", pano);
         if (cv::waitKey(1) == 27)
