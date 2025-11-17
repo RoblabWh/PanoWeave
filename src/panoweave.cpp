@@ -26,7 +26,7 @@ namespace panoweave
             std::vector<cv::cuda::GpuMat> mapx, mapy;
             std::vector<cv::cuda::GpuMat> vigns;
             std::vector<cv::cuda::GpuMat> response;
-            cv::cuda::GpuMat mask;
+            std::vector<cv::cuda::GpuMat> weights;
             cv::cuda::Stream stream;
     };
 
@@ -346,10 +346,9 @@ namespace panoweave
                 cv::multiply(undist, target_exposure / exposure[i], undist);
 
                 cv::remap(undist, remapped, this->maps[i], cv::noArray(), cv::INTER_NEAREST);
-
+                cv::multiply(remapped, this->weights[i], remapped);
                 cv::add(remapped, stitched, stitched);
             }
-            cv::divide(stitched, this->mask, stitched);
             stitched.convertTo(pano, CV_8UC(this->channels));
 #else
             static cv::cuda::GpuMat img, undist, remapped, stitched;
@@ -365,11 +364,11 @@ namespace panoweave
                     cuda_correctResponse(img, this->dev->response[i], undist, this->dev->stream);
                 cv::cuda::multiply(undist, this->dev->vigns[i], undist, 1.0, -1, this->dev->stream);
                 cv::cuda::multiply(undist, cv::Scalar::all(target_exposure / exposure[i]), undist, 1.0, -1, this->dev->stream);
-                cv::cuda::remap(undist, remapped, this->dev->mapx[i], this->dev->mapy[i], cv::INTER_NEAREST, 0, cv::Scalar(), this->dev->stream);
 
+                cv::cuda::remap(undist, remapped, this->dev->mapx[i], this->dev->mapy[i], cv::INTER_NEAREST, 0, cv::Scalar(), this->dev->stream);
+                cv::cuda::multiply(remapped, this->dev->weights[i], remapped, 1.0, -1, this->dev->stream);
                 cv::cuda::add(remapped, stitched, stitched, cv::noArray(), -1, this->dev->stream);
             }
-            cv::cuda::divide(stitched, this->dev->mask, stitched, 1.0, -1, this->dev->stream);
             stitched.convertTo(stitched, CV_8UC(this->channels), this->dev->stream);
             stitched.download(pano, this->dev->stream);
             this->dev->stream.waitForCompletion();
@@ -465,25 +464,36 @@ namespace panoweave
                                { point = in.at<CvPoint3T>(pos) * depth.at<ScalarT>(pos); });
     }
 
-    void buildMappingTables(const cv::Mat &points, const basalt::Calibration<ScalarT> calibration, std::vector<cv::Mat> &maps)
+    void buildMappingTables(const cv::Mat &points, const basalt::Calibration<ScalarT> calibration, std::vector<cv::Mat> &maps, std::vector<cv::Mat> &weights)
     {
-        spdlog::trace("buildMappingTables(const cv::Mat &, const basalt::Calibration<ScalarT>, std::vector<cv::Mat> &)");
-        maps.clear();
+        spdlog::trace("buildMappingTables(const cv::Mat &, const basalt::Calibration<ScalarT>, std::vector<cv::Mat> &, std::vector<cv::Mat> &)");
         const uint8_t num_cams = calibration.intrinsics.size();
+        maps.clear();
         maps.reserve(num_cams);
+        weights.clear();
+        weights.reserve(num_cams);
 
         for (uint8_t cam_idx = 0; cam_idx < num_cams; ++cam_idx)
         {
             maps.emplace_back(points.size(), CvMatT(2));
+            weights.emplace_back(points.size(), CvMatT(1));
+            const auto oc = calibration.intrinsics[cam_idx].getParam().segment<2>(2).eval();
+            const auto max = calibration.resolution[cam_idx].norm();
             std::visit([&](const auto& intr)
             {
                 maps[cam_idx].forEach<cv::Vec<ScalarT, 2>>([&](auto &mapping, const auto pos) -> void
                 {
                     auto p2d = Eigen::Map<Eigen::Vector<ScalarT, 2>>(mapping.val);
                     auto p3d = Eigen::Map<const Eigen::Vector<ScalarT, 3>>(points.at<cv::Vec<ScalarT, 3>>(pos).val);
+                    auto &w = weights[cam_idx].at<ScalarT>(pos);
                     if (!intr.project(calibration.T_i_c[cam_idx].inverse() * p3d, p2d))
                     {
                         p2d.setZero();
+                        w = 0.0;
+                    }
+                    else
+                    {
+                        w = max - (p2d - oc).norm();
                     }
                 });
             },
@@ -523,8 +533,8 @@ namespace panoweave
             return false;
         }
 
-        std::vector<cv::Mat> maps;
-        buildMappingTables(points, this->calib, maps);
+        std::vector<cv::Mat> maps, weights;
+        buildMappingTables(points, this->calib, maps, weights);
 
 #ifdef USE_CUDA
         this->dev->mapx.resize(maps.size());
@@ -533,7 +543,7 @@ namespace panoweave
         this->maps.resize(maps.size());
         for (uint8_t i = 0; i < maps.size(); ++i)
         {
-            static_cast<cv::Mat>(maps[i]).copyTo(this->maps[i]);
+            maps[i].copyTo(this->maps[i]);
 #ifdef USE_CUDA
             std::vector<cv::UMat> maps_xy;
             cv::split(this->maps[i], maps_xy);
@@ -541,6 +551,9 @@ namespace panoweave
             this->dev->mapy[i].upload(maps_xy[1]);
 #endif
         }
+        this->weights_base.resize(weights.size());
+        for (uint8_t i = 0; i < weights.size(); ++i)
+            weights[i].copyTo(this->weights_base[i]);
 
         this->build_mask = true;
         this->build_maps = false;
@@ -574,27 +587,31 @@ namespace panoweave
         if (!this->build_mask)
             return;
 
-        // build rescale mask from new maps and vignettes
-        this->mask_base = cv::UMat::zeros(this->res, CvMatT(1));
+        // build weights from new maps and vignettes
+        cv::UMat weight_sum = cv::UMat::zeros(this->res, CvMatT(1));
         for (uint8_t cam_idx = 0; cam_idx < this->calib.intrinsics.size(); ++cam_idx)
         {
-            cv::UMat mask_part, mask_bin;
+            cv::UMat mask, mask_eqr;
 #ifndef USE_CUDA
-            cv::compare(this->vigns_base[cam_idx], 0, mask_bin, cv::CMP_GT);
-            cv::divide(mask_bin, 255, mask_bin);
-            cv::remap(mask_bin, mask_part, this->maps[cam_idx], cv::noArray(), cv::INTER_NEAREST);
+            cv::compare(this->vigns_base[cam_idx], 0, mask, cv::CMP_GT);
+            cv::remap(mask, mask_eqr, this->maps[cam_idx], cv::noArray(), cv::INTER_NEAREST);
 #else
-            cv::cuda::GpuMat mask_part_cudev, mask_bin_cudev;
-            cv::cuda::compare(this->vigns_base[cam_idx], cv::Scalar::all(0), mask_bin_cudev, cv::CMP_GT);
-            cv::cuda::divide(mask_bin_cudev, cv::Scalar::all(255), mask_bin_cudev);
-            cv::cuda::remap(mask_bin_cudev, mask_part_cudev, this->dev->mapx[cam_idx], this->dev->mapy[cam_idx], cv::INTER_NEAREST);
-            mask_part_cudev.download(mask_part);
-            mask_bin_cudev.download(mask_bin);
+            cv::cuda::GpuMat mask_cudev, mask_eqr_cudev;
+            cv::cuda::compare(this->vigns_base[cam_idx], cv::Scalar::all(0), mask_cudev, cv::CMP_GT);
+            cv::cuda::remap(mask_cudev, mask_eqr_cudev, this->dev->mapx[cam_idx], this->dev->mapy[cam_idx], cv::INTER_NEAREST);
+            mask_eqr_cudev.download(mask_eqr);
+            mask_cudev.download(mask);
 #endif
-            cv::add(this->mask_base, mask_part, this->mask_base, cv::noArray(), CvMatT(1));
+            cv::UMat weight_norm = cv::UMat::zeros(this->res, CvMatT(1));
+            cv::normalize(this->weights_base[cam_idx], weight_norm, 1, 0, cv::NORM_MINMAX, -1, mask_eqr);
+            cv::add(weight_norm, weight_sum, weight_sum);
+            this->weights_base[cam_idx] = weight_norm;
+
             if (this->use_mask_as_vign)
-                mask_bin.convertTo(this->vigns_base[cam_idx], CvMatT(1));
+                mask.convertTo(this->vigns_base[cam_idx], CvMatT(1));
         }
+        for (uint8_t cam_idx = 0; cam_idx < this->calib.intrinsics.size(); ++cam_idx)
+            cv::divide(this->weights_base[cam_idx], weight_sum, this->weights_base[cam_idx]);
 
         this->build_mirrors = true;
         this->build_mask = false;
@@ -617,19 +634,19 @@ namespace panoweave
 
 #ifdef USE_CUDA
         this->dev->vigns.resize(this->vigns_base.size());
+        this->dev->weights.resize(this->weights_base.size());
 #endif
         this->vigns.resize(this->vigns_base.size());
+        this->weights.resize(this->weights_base.size());
         for (uint8_t cam_idx = 0; cam_idx < this->calib.intrinsics.size(); ++cam_idx)
         {
             mirrorChannels(this->vigns_base[cam_idx], this->channels, this->vigns[cam_idx]);
+            mirrorChannels(this->weights_base[cam_idx], this->channels, this->weights[cam_idx]);
 #ifdef USE_CUDA
             this->dev->vigns[cam_idx].upload(this->vigns[cam_idx]);
+            this->dev->weights[cam_idx].upload(this->weights[cam_idx]);
 #endif
         }
-        mirrorChannels(this->mask_base, this->channels, this->mask);
-#ifdef USE_CUDA
-        this->dev->mask.upload(this->mask);
-#endif
 
         this->build_mirrors = false;
     }
