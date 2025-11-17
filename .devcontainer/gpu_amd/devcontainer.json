@@ -15,11 +15,17 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"ms-vscode.cpptools-extension-pack",
+				"llvm-vs-code-extensions.vscode-clangd",
+				"galarius.vscode-opencl",
+				"ms-vscode.cmake-tools",
 				"vadimcn.vscode-lldb",
-				"charliermarsh.ruff",
-				"galarius.vscode-opencl"
-			]
+				"charliermarsh.ruff"
+			],
+			"settings": {
+				"cmake.configureArgs": [
+					"CMAKE_EXPORT_COMPILE_COMMANDS=1"
+				]
+			}
 		}
 	}
 }
