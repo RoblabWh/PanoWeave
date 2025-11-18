@@ -25,7 +25,7 @@
 			],
 			"settings": {
 				"cmake.configureArgs": [
-					"CMAKE_EXPORT_COMPILE_COMMANDS=1"
+					"-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
 				]
 			}
 		}
