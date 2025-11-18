@@ -1,7 +1,14 @@
 cmake_minimum_required(VERSION 3.23)
 project(PanoWeave LANGUAGES CXX)
 
-option(USE_CUDA "Build with CUDA support instead of T-API" OFF)
+include(CheckLanguage)
+check_language(CUDA)
+set(USE_CUDA_DEFAULT OFF)
+if(CMAKE_CUDA_COMPILER)
+    set(USE_CUDA_DEFAULT ON)
+endif()
+
+option(USE_CUDA "Build with CUDA support instead of T-API" ${USE_CUDA_DEFAULT})
 if(USE_CUDA)
     enable_language(CUDA)
     list(APPEND src_list src/correct_response.cu)
