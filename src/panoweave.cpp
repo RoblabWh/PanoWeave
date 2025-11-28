@@ -551,9 +551,9 @@ namespace panoweave
             this->dev->mapy[i].upload(maps_xy[1]);
 #endif
         }
-        this->weights_base.resize(weights.size());
+        this->weights_raw.resize(weights.size());
         for (uint8_t i = 0; i < weights.size(); ++i)
-            weights[i].copyTo(this->weights_base[i]);
+            weights[i].copyTo(this->weights_raw[i]);
 
         this->build_mask = true;
         this->build_maps = false;
@@ -588,6 +588,7 @@ namespace panoweave
             return;
 
         // build weights from new maps and vignettes
+        this->weights_base.resize(this->weights_raw.size());
         cv::UMat weight_sum = cv::UMat::zeros(this->res, CvMatT(1));
         for (uint8_t cam_idx = 0; cam_idx < this->calib.intrinsics.size(); ++cam_idx)
         {
@@ -602,13 +603,12 @@ namespace panoweave
             mask_eqr_cudev.download(mask_eqr);
             mask_cudev.download(mask);
 #endif
-            cv::UMat weight_norm = cv::UMat::zeros(this->res, CvMatT(1));
-            cv::normalize(this->weights_base[cam_idx], weight_norm, 1, 0, cv::NORM_MINMAX, -1, mask_eqr);
-            cv::add(weight_norm, weight_sum, weight_sum);
-            this->weights_base[cam_idx] = weight_norm;
+            this->weights_base[cam_idx] = cv::UMat::zeros(this->res, CvMatT(1));
+            cv::normalize(this->weights_raw[cam_idx], this->weights_base[cam_idx], 1, 0, cv::NORM_MINMAX, -1, mask_eqr);
+            cv::add(this->weights_base[cam_idx], weight_sum, weight_sum);
 
             if (this->use_mask_as_vign)
-                mask.convertTo(this->vigns_base[cam_idx], CvMatT(1));
+                mask.convertTo(this->vigns_base[cam_idx], CvMatT(1), 1.0 / 255.0);
         }
         for (uint8_t cam_idx = 0; cam_idx < this->calib.intrinsics.size(); ++cam_idx)
             cv::divide(this->weights_base[cam_idx], weight_sum, this->weights_base[cam_idx]);

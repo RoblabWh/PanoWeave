@@ -81,7 +81,7 @@ namespace panoweave
         basalt::Calibration<ScalarT> calib;
         std::vector<cv::UMat> vigns, vigns_base;
         std::vector<cv::UMat> response;
-        std::vector<cv::UMat> weights, weights_base;
+        std::vector<cv::UMat> weights, weights_base, weights_raw;
 
         // Additional resources
         std::unique_ptr<DeviceData> dev;
