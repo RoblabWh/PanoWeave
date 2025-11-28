@@ -423,9 +423,9 @@ namespace panoweave
                                     const ScalarT y = v / res.height * fov.height;
 
                                     // Calculate X, Y, and Z components of spherical rays
-                                    point.x = std::sin(y) * std::sin(x);
-                                    point.y = std::sin(y) * std::cos(x);
-                                    point.z = std::cos(y);
+                                    point.x = -std::sin(y) * std::cos(x);
+                                    point.y = -std::cos(y);
+                                    point.z = std::sin(y) * std::sin(x);
                                 });
     }
 
