@@ -28,8 +28,8 @@ def modifyRotation(tf, x = None, y = None, z = None):
 
 def main():
     parser = ArgumentParser(prog="Video Stitcher Example")
-    parser.add_argument("inputs", nargs="+", type=str, help="Path to input videos")
-    parser.add_argument("--calibration", "--calib", "-c", type=str, help="Path to basalt calibration.json for camera calibration", required=True)
+    parser.add_argument("inputs", nargs="+", type=str, help="path to input videos")
+    parser.add_argument("--calibration", "--calib", "-c", type=str, help="path to basalt calibration.json for camera calibration", required=True)
     try:
         args = parser.parse_args()
     except ArgumentError as e:

@@ -6,7 +6,8 @@ RUN apt-get update && \
     apt-get install --yes --no-install-recommends \
         clang cmake ninja-build git ca-certificates \
         libspdlog-dev libargparse-dev pybind11-dev python3-numpy python3-scipy libboost-serialization-dev \
-    && \
+        doxygen python3-pip && \
+    pip install --break-system-packages pybind11-stubgen && \
     apt-get install --yes nvidia-opencl-dev
 
 ARG build_threads=0

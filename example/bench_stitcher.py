@@ -29,37 +29,37 @@ def main():
         "--calib",
         "-c",
         type=str,
-        help="Path to basalt calibration.json for camera calibration",
+        help="path to basalt calibration.json for camera calibration",
         required=True,
     )
     parser.add_argument(
         "--width",
         type=int,
         default=3200,
-        help="Output resolution width in pixels",
+        help="output resolution width in pixels",
     )
     parser.add_argument(
         "--height",
         type=int,
         default=1600,
-        help="Output resolution height in pixels",
+        help="output resolution height in pixels",
     )
     parser.add_argument(
         "--iterations",
         "-i",
         type=int,
         default=1000,
-        help="Number of iterations to run",
+        help="number of iterations to run",
     )
     parser.add_argument(
         "--skip-first",
         action="store_true",
-        help="Skip the first iteration (removes lazy loading time)",
+        help="skip the first iteration (removes lazy loading time)",
     )
     parser.add_argument(
         "--simulate-depth",
         action="store_true",
-        help="Simulate depth data",
+        help="simulate depth data",
     )
     try:
         args = parser.parse_args()

@@ -12,6 +12,9 @@
 		//TODO Modify path to dataset location
 		"--volume=/var/datasets:/data:ro"
 	],
+	"containerEnv": {
+		"PYTHONPATH": "${containerWorkspaceFolder}/build"
+	},
 	"customizations": {
 		"vscode": {
 			"extensions": [

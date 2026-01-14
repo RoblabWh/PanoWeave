@@ -33,29 +33,29 @@ int main(int argc, char **argv)
     argp.add_argument("inputs")
         .nargs(argparse::nargs_pattern::at_least_one)
         .append()
-        .help("Path to input videos");
+        .help("path to input videos");
     argp.add_argument("--calibration", "--calib", "-c")
-        .help("Path to basalt calibration.json for camera calibration");
+        .help("path to basalt calibration.json for camera calibration");
     argp.add_argument("--width")
         .scan<'u', size_t>()
         .default_value<size_t>(3200)
-        .help("Output resolution width in pixels");
+        .help("output resolution width in pixels");
     argp.add_argument("--height")
         .scan<'u', size_t>()
         .default_value<size_t>(1600)
-        .help("Output resolution height in pixels");
+        .help("output resolution height in pixels");
     argp.add_argument("--iterations", "-i")
         .scan<'u', size_t>()
         .default_value<size_t>(1000)
-        .help("Number of iterations to run");
+        .help("number of iterations to run");
     argp.add_argument("--skip-first")
         .default_value(false)
         .implicit_value(true)
-        .help("Skip the first iteration (removes lazy loading time)");
+        .help("skip the first iteration (removes lazy loading time)");
     argp.add_argument("--simulate-depth")
         .default_value(false)
         .implicit_value(true)
-        .help("Simulate depth data");
+        .help("simulate depth data");
     try
     {
         argp.parse_args(argc, argv);

@@ -38,9 +38,9 @@ int main(int argc, char **argv)
     argp.add_argument("inputs")
         .nargs(argparse::nargs_pattern::at_least_one)
         .append()
-        .help("Path to input videos");
+        .help("path to input videos");
     argp.add_argument("--calibration", "--calib", "-c")
-        .help("Path to basalt calibration.json for camera calibration");
+        .help("path to basalt calibration.json for camera calibration");
     try
     {
         argp.parse_args(argc, argv);

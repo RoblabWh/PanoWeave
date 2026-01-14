@@ -65,17 +65,54 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD_REQUIRED YES
 )
 
-option(PYBINDS "Build Python Bindings with pybind11" ${BUILD_AUX})
-if(${PYBINDS})
+option(PYBINDS "Build Python bindings with pybind11" ${BUILD_AUX})
+if(PYBINDS)
     find_package(pybind11 REQUIRED)
+    find_package(Python COMPONENTS Interpreter)
 
     string(TOLOWER ${PROJECT_NAME} PYBIND_PROJECT_NAME)
     pybind11_add_module(${PYBIND_PROJECT_NAME} src/panoweave_pybind.cpp)
     target_link_libraries(${PYBIND_PROJECT_NAME} PUBLIC ${PROJECT_NAME})
-endif(${PYBINDS})
 
-option(EXAMPLES "Build example applications for PanoWeave" ${BUILD_AUX})
-if(${EXAMPLES})
+    if(Python_Interpreter_FOUND)
+        execute_process(
+            COMMAND ${Python_EXECUTABLE} -c "import pybind11_stubgen"
+            RESULT_VARIABLE PYBIND11_STUBGEN_RESULT
+            OUTPUT_QUIET ERROR_QUIET
+        )
+
+        if (PYBIND11_STUBGEN_RESULT EQUAL 0)
+            message(STATUS "Found pybind11_stubgen, Python stubs will be generated")
+            add_custom_command(
+                OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${PYBIND_PROJECT_NAME}.pyi
+                COMMAND ${Python_EXECUTABLE} -m pybind11_stubgen -o ${CMAKE_CURRENT_BINARY_DIR} ${PYBIND_PROJECT_NAME}
+                DEPENDS ${PYBIND_PROJECT_NAME}
+                COMMENT "Generating Python stubs"
+            )
+            add_custom_target(${PYBIND_PROJECT_NAME}_stubs ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${PYBIND_PROJECT_NAME}.pyi)
+        else()
+            message(STATUS "pybind11_stubgen not found, Python stubs will not be generated")
+        endif()
+    else()
+        message(STATUS "Python interpreter not found, Python stubs will not be generated")
+    endif()
+endif()
+
+option(EXAMPLES "Build example applications" ${BUILD_AUX})
+if(EXAMPLES)
     add_subdirectory(thirdparty/argparse)
     add_subdirectory(example)
-endif(${EXAMPLES})
+endif()
+
+option(DOCS "Generate documentation with Doxygen" ${BUILD_AUX})
+if(DOCS)
+    find_package(Doxygen)
+    if(DOXYGEN_FOUND)
+        set(DOXYGEN_EXTRACT_PRIVATE YES)
+        set(DOXYGEN_HIDE_UNDOC_MEMBERS YES)
+        set(DOXYGEN_USE_MDFILE_AS_MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/readme.md)
+        doxygen_add_docs(${PROJECT_NAME}Docs ${CMAKE_CURRENT_SOURCE_DIR}/readme.md ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    else()
+        message(STATUS "Doxygen not found, documentation can not be generated")
+    endif()
+endif()

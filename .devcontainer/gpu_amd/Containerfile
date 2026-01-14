@@ -5,7 +5,9 @@ RUN apt-get update && \
     apt-get upgrade --yes --no-install-recommends && \
     apt-get install --yes --no-install-recommends \
         clang cmake ninja-build git ca-certificates \
-        libspdlog-dev libargparse-dev pybind11-dev python3-numpy python3-scipy libboost-serialization-dev
+        libspdlog-dev libargparse-dev pybind11-dev python3-numpy python3-scipy libboost-serialization-dev \
+        doxygen python3-pip && \
+    pip install --break-system-packages pybind11-stubgen
 
 ARG build_threads=0
 ARG opencv_version=4.11.0

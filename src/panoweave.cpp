@@ -91,7 +91,7 @@ namespace panoweave
         this->build_vigns = true;
     }
 
-    const basalt::Calibration<ScalarT> &Stitcher::calibration()
+    const basalt::Calibration<ScalarT> &Stitcher::calibration() const
     {
         spdlog::trace("Stitcher::calibration()");
         return this->calib;
@@ -111,46 +111,6 @@ namespace panoweave
         this->depth_static = 0.0;
         depth.copyTo(this->depth_dynamic);
         this->build_maps = true;
-    }
-
-    CvFovT Stitcher::fov() const
-    {
-        spdlog::trace("Stitcher::fov() const");
-        return this->fov_;
-    }
-    CvFovT Stitcher::fov(ScalarT fov_x, ScalarT fov_y)
-    {
-        spdlog::trace("Stitcher::fov(ScalarT, ScalarT)");
-        return this->fov({fov_x, fov_y});
-    }
-    CvFovT Stitcher::fov(CvFovT fov)
-    {
-        spdlog::trace("Stitcher::fov(CvFovT)");
-        this->fov_ = fov;
-        this->build_maps = true;
-        return fov;
-    }
-    ScalarT Stitcher::fovX() const
-    {
-        spdlog::trace("Stitcher::fovX() const");
-        return this->fov_.width;
-    }
-    ScalarT Stitcher::fovX(ScalarT fov)
-    {
-        spdlog::trace("Stitcher::fovX(ScalarT)");
-        this->fov(fov, this->fov_.height);
-        return fov;
-    }
-    ScalarT Stitcher::fovY() const
-    {
-        spdlog::trace("Stitcher::fovY() const");
-        return this->fov_.height;
-    }
-    ScalarT Stitcher::fovY(ScalarT fov)
-    {
-        spdlog::trace("Stitcher::fovY(ScalarT)");
-        this->fov(this->fov_.width, fov);
-        return fov;
     }
 
     cv::Size Stitcher::resolution() const
@@ -191,6 +151,46 @@ namespace panoweave
         spdlog::trace("Stitcher::height(int)");
         this->resolution(this->res.width, height);
         return height;
+    }
+
+    CvFovT Stitcher::fov() const
+    {
+        spdlog::trace("Stitcher::fov() const");
+        return this->fov_;
+    }
+    CvFovT Stitcher::fov(CvFovT fov)
+    {
+        spdlog::trace("Stitcher::fov(CvFovT)");
+        this->fov_ = fov;
+        this->build_maps = true;
+        return fov;
+    }
+    CvFovT Stitcher::fov(ScalarT fov_x, ScalarT fov_y)
+    {
+        spdlog::trace("Stitcher::fov(ScalarT, ScalarT)");
+        return this->fov({fov_x, fov_y});
+    }
+    ScalarT Stitcher::fovX() const
+    {
+        spdlog::trace("Stitcher::fovX() const");
+        return this->fov_.width;
+    }
+    ScalarT Stitcher::fovX(ScalarT fov)
+    {
+        spdlog::trace("Stitcher::fovX(ScalarT)");
+        this->fov(fov, this->fov_.height);
+        return fov;
+    }
+    ScalarT Stitcher::fovY() const
+    {
+        spdlog::trace("Stitcher::fovY() const");
+        return this->fov_.height;
+    }
+    ScalarT Stitcher::fovY(ScalarT fov)
+    {
+        spdlog::trace("Stitcher::fovY(ScalarT)");
+        this->fov(this->fov_.width, fov);
+        return fov;
     }
 
     ScalarT Stitcher::vignetteThreshold() const
