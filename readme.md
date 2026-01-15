@@ -83,6 +83,9 @@ Available options (default values in parentheses):
 ## Documentation
 PanoWeave offers documentation for both C++ and Python APIs. C++ documentation is generated with Doxygen, while Python stubs are created for IDE support.
 
+**Online documentation:**  
+[PanoWeave Documentation](https://roblabwh.github.io/PanoWeave/)
+
 ### Doxygen
 You can generate HTML documentation by building the `PanoWeaveDocs` CMake target. This target is created automatically if Doxygen is available during configuration and can be built on demand.
 
