@@ -1,0 +1,4 @@
+var searchData=
+[
+  ['transform_0',['transform',['../classpanoweave_1_1Stitcher.html#af4cbc16a44869d6f3c0a462a2e572f38',1,'panoweave::Stitcher::transform() const'],['../classpanoweave_1_1Stitcher.html#ad8eda663c93368ba8a49505e2a80d6a4',1,'panoweave::Stitcher::transform(const CvAffine3T &amp;transform)'],['../classpanoweave_1_1Stitcher.html#ae86867fa232cbb2cd8e0e8092d2bf197',1,'panoweave::Stitcher::transform(const CvAffine3T::Mat4 &amp;affine)'],['../classpanoweave_1_1Stitcher.html#a87ef709f9a7a9074373d14db5fd4a9ad',1,'panoweave::Stitcher::transform(const CvAffine3T::Mat3 &amp;rotation, const CvAffine3T::Vec3 &amp;translation=CvAffine3T::Vec3(0, 0, 0))'],['../classpanoweave_1_1Stitcher.html#a52376fa1e9ccc7c2e36e76d60155a921',1,'panoweave::Stitcher::transform(const CvAffine3T::Vec3 &amp;rotation, const CvAffine3T::Vec3 &amp;translation=CvAffine3T::Vec3(0, 0, 0))']]]
+];
