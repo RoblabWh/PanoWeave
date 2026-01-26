@@ -67,34 +67,22 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 
 option(PYBINDS "Build Python bindings with pybind11" ${BUILD_AUX})
 if(PYBINDS)
-    find_package(pybind11 REQUIRED)
-    find_package(Python COMPONENTS Interpreter)
+    find_package(Python COMPONENTS Interpreter Development)
+    find_package(pybind11 REQUIRED CONFIG)
 
     string(TOLOWER ${PROJECT_NAME} PYBIND_PROJECT_NAME)
     pybind11_add_module(${PYBIND_PROJECT_NAME} src/panoweave_pybind.cpp)
     target_link_libraries(${PYBIND_PROJECT_NAME} PUBLIC ${PROJECT_NAME})
 
-    if(Python_Interpreter_FOUND)
-        execute_process(
-            COMMAND ${Python_EXECUTABLE} -c "import pybind11_stubgen"
-            RESULT_VARIABLE PYBIND11_STUBGEN_RESULT
-            OUTPUT_QUIET ERROR_QUIET
+    pybind11_find_import(pybind11_stubgen)
+    if(Python_Interpreter_FOUND AND pybind11_stubgen_FOUND)
+        add_custom_command(
+            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${PYBIND_PROJECT_NAME}.pyi
+            COMMAND ${Python_EXECUTABLE} -m pybind11_stubgen -o ${CMAKE_CURRENT_BINARY_DIR} ${PYBIND_PROJECT_NAME}
+            DEPENDS ${PYBIND_PROJECT_NAME}
+            COMMENT "Generating Python stubs"
         )
-
-        if (PYBIND11_STUBGEN_RESULT EQUAL 0)
-            message(STATUS "Found pybind11_stubgen, Python stubs will be generated")
-            add_custom_command(
-                OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${PYBIND_PROJECT_NAME}.pyi
-                COMMAND ${Python_EXECUTABLE} -m pybind11_stubgen -o ${CMAKE_CURRENT_BINARY_DIR} ${PYBIND_PROJECT_NAME}
-                DEPENDS ${PYBIND_PROJECT_NAME}
-                COMMENT "Generating Python stubs"
-            )
-            add_custom_target(${PYBIND_PROJECT_NAME}_stubs ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${PYBIND_PROJECT_NAME}.pyi)
-        else()
-            message(STATUS "pybind11_stubgen not found, Python stubs will not be generated")
-        endif()
-    else()
-        message(STATUS "Python interpreter not found, Python stubs will not be generated")
+        add_custom_target(${PYBIND_PROJECT_NAME}_stubs ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${PYBIND_PROJECT_NAME}.pyi)
     endif()
 endif()
 
