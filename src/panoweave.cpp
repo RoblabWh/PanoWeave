@@ -517,7 +517,6 @@ namespace panoweave
 
         cv::Mat points;
         createSphericalPoints(this->res, this->fov_, points);
-        transformPoints(points, this->tf, points);
 
         if (this->depth_static > 0.0)
         {
@@ -532,6 +531,8 @@ namespace panoweave
             spdlog::warn("buildMaps(): depth is empty");
             return false;
         }
+
+        transformPoints(points, this->tf, points);
 
         std::vector<cv::Mat> maps, weights;
         buildMappingTables(points, this->calib, maps, weights);
