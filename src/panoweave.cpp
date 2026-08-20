@@ -416,8 +416,8 @@ namespace panoweave
         points.create(res, CvMatT(3));
         points.forEach<CvPoint3T>([&](auto &point, const auto &pos) -> void
                                 {
-                                    const ScalarT u = pos[1] - res.width / 2.0;
-                                    const ScalarT v = pos[0] - res.height / 2.0;
+                                    const ScalarT u = pos[1] - res.width / 2.0 + 0.5;
+                                    const ScalarT v = pos[0] - res.height / 2.0 + 0.5;
 
                                     const ScalarT x = u / res.width * fov.width;
                                     const ScalarT y = v / res.height * fov.height;
