@@ -479,6 +479,7 @@ namespace panoweave
             weights.emplace_back(points.size(), CvMatT(1));
             const auto oc = calibration.intrinsics[cam_idx].getParam().segment<2>(2).eval();
             const auto max = calibration.resolution[cam_idx].norm();
+            const auto T_c_i = calibration.T_i_c[cam_idx].inverse();
             std::visit([&](const auto& intr)
             {
                 maps[cam_idx].forEach<cv::Vec<ScalarT, 2>>([&](auto &mapping, const auto pos) -> void
@@ -486,9 +487,9 @@ namespace panoweave
                     auto p2d = Eigen::Map<Eigen::Vector<ScalarT, 2>>(mapping.val);
                     auto p3d = Eigen::Map<const Eigen::Vector<ScalarT, 3>>(points.at<cv::Vec<ScalarT, 3>>(pos).val);
                     auto &w = weights[cam_idx].at<ScalarT>(pos);
-                    if (!intr.project(calibration.T_i_c[cam_idx].inverse() * p3d, p2d))
+                    if (!intr.project(T_c_i * p3d, p2d))
                     {
-                        p2d.setZero();
+                        p2d.setConstant(-1.0);
                         w = 0.0;
                     }
                     else
