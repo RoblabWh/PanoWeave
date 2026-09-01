@@ -27,21 +27,23 @@ namespace panoweave
             std::vector<cv::cuda::GpuMat> vigns;
             std::vector<cv::cuda::GpuMat> response;
             std::vector<cv::cuda::GpuMat> weights;
+            cv::cuda::GpuMat img, undist, remapped, stitched;
             cv::cuda::Stream stream;
     };
 
     void cuda_correctResponse(cv::InputArray src, cv::InputArray inv_resp, cv::OutputArray dst, cv::cuda::Stream &stream = cv::cuda::Stream::Null());
 #else
-    struct DeviceData {};
+    struct DeviceData
+    {
+            cv::UMat undist, remapped, stitched;
+    };
 #endif
 
     Stitcher::Stitcher()
     {
         spdlog::trace("Stitcher::Stitcher()");
         spdlog::cfg::load_env_levels();
-#ifdef USE_CUDA
         this->dev = std::make_unique<DeviceData>();
-#endif
     }
 
     Stitcher::Stitcher(const std::string &filepath) : Stitcher()
@@ -330,7 +332,7 @@ namespace panoweave
             ScalarT target_exposure = exp_sort[exp_sort.size() / 2];
 
 #ifndef USE_CUDA
-            static cv::UMat undist, remapped, stitched;
+            cv::UMat &undist = this->dev->undist, &remapped = this->dev->remapped, &stitched = this->dev->stitched;
 
             stitched.create(this->res, CvMatT(this->channels));
             stitched.setTo(cv::Scalar::all(0));
@@ -351,7 +353,8 @@ namespace panoweave
             }
             stitched.convertTo(pano, CV_8UC(this->channels));
 #else
-            static cv::cuda::GpuMat img, undist, remapped, stitched;
+            cv::cuda::GpuMat &img = this->dev->img, &undist = this->dev->undist,
+                             &remapped = this->dev->remapped, &stitched = this->dev->stitched;
 
             stitched.create(this->res, CvMatT(this->channels));
             stitched.setTo(cv::Scalar::all(0), this->dev->stream);
